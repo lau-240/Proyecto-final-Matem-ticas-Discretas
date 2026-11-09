@@ -1,0 +1,5 @@
+networkx
+matplotlib
+pytest
+streamlit
+google-genai
