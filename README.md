@@ -38,7 +38,7 @@ python -m pytest               # pruebas
   Si no se define, la clave es `cambiar-esta-clave`: **cámbienla**.
 - **Leer el horario desde una foto** es OPCIONAL y usa la IA de Google Gemini. Requiere una
   clave de API gratis (https://aistudio.google.com/apikey). Sin ella, se puede cargar el
-  horario por CSV o a mano. La clave se puede dar de dos formas:
+  horario a mano, clase por clase. La clave se puede dar de dos formas:
 
   1. Archivo `.streamlit/secrets.toml` (recomendada; ya está en `.gitignore`, así que no se
      sube a GitHub):
@@ -66,17 +66,18 @@ python -m pytest               # pruebas
 
 | Archivo | Qué hace |
 |---|---|
-| `app.py` | Interfaz Streamlit: buscar libre, qué hay, tutorías, registrar, semestre |
+| `app.py` | Interfaz Streamlit: buscar libre, qué hay, tutorías, registrar, mi horario, semestre |
 | `iniciar.bat` | Atajo de Windows: activa el entorno y abre la app |
 | `listar_modelos.py` | Lista los modelos de Gemini disponibles para tu clave |
 | `main.py` | Caso conocido, conflictos, tutorías, simulación y análisis de red |
 | `src/franjas.py` | Franjas horarias como bits (6 días x 16 horas, 6:00-22:00) |
+| `src/tiempo.py` | Hora de Colombia y vencimiento de los usos de una sola vez |
 | `src/campus.py` | Espacios, ocupación/información, estados y grafo de bloques |
 | `src/codigos.py` | Códigos de salón (26J, 37G2, SDU9, L1-5) -> bloque |
 | `src/horario_csv.py` | Lectura y validación de horarios en CSV |
 | `src/lector_imagen.py` | Lectura de la foto del horario con IA (opcional) |
 | `src/consultas.py` | Libres, más cercano, tutorías, ubicación inferida, cobertura |
-| `src/almacen.py` | Guardado en disco (JSON) y ciclo de vida por semestre |
+| `src/almacen.py` | Guardado en disco (JSON), candado de guardado y ciclo de vida por semestre |
 | `src/datos.py` | Campus real, campus de simulación, caso conocido |
 | `src/metricas.py` | Modelo de 3 estados vs. ingenuo de 2 estados |
 | `tests/` | Pruebas, incluido el caso con resultado conocido |
@@ -86,6 +87,14 @@ python -m pytest               # pruebas
 Por espacio: `ocupado` e `info` (vectores de bits). Ocupado = bit en `ocupado`;
 libre = `info` y no `ocupado`; desconocido = sin `info`. Conflicto al reservar =
 `ocupado AND máscara != 0`.
+
+## Usos que se repiten y usos de una sola vez
+
+Los horarios son semanales (no tienen fecha), así que cada uso se trata según su motivo:
+
+- **Clase y tutoría:** se repiten cada semana hasta que termina el semestre.
+- **Estudio, reunión y práctica:** ocupan la franja solo la próxima vez que ocurre y se
+  borran solos al terminar. El espacio queda *sin información*, no *libre*.
 
 ## Códigos de salón
 
@@ -103,11 +112,15 @@ libre = `info` y no `ocupado`; desconocido = sin `info`. Conflicto al reservar =
 
 ## Limitaciones conocidas
 
-- Un espacio solo aparece en la app cuando alguien lo registra o carga un horario que lo usa;
-  "sin información" no significa libre.
+- Un espacio solo se asegura como libre u ocupado si alguien lo registró o cargó un horario
+  que lo usa; "sin información" no significa libre.
 - Los tiempos de caminata entre bloques (`ARISTAS_CAMPUS` en `src/datos.py`) son valores de
   ejemplo y deben medirse en el campus. El tiempo del bloque `LAB` también.
-- Borrar un horario no deshace las confirmaciones ya sumadas a clases compartidas.
+- El código estudiantil no es secreto y no hay contraseña: quien conozca el código de otra
+  persona puede ver, corregir o borrar su horario.
+- El candado de guardado funciona dentro de un solo proceso de Streamlit (como se ejecuta
+  aquí). Si se corrieran varios procesos sobre la misma carpeta `datos/`, harían falta
+  otras garantías (por ejemplo, una base de datos).
 - La lectura por foto depende de un servicio externo, puede equivocarse y por eso siempre
   se revisa antes de guardar.
 
@@ -115,4 +128,5 @@ libre = `info` y no `ocupado`; desconocido = sin `info`. Conflicto al reservar =
 
 - [ ] Medir en el campus los tiempos de caminata reales.
 - [ ] Cargar horarios reales y hacer la encuesta de tiempo de búsqueda (manual vs. modelo).
-- [ ] Decidir cuándo expira una ocupación declarada sin confirmar (`Campus.liberar`).
+- [ ] Agregar los salones de los demás bloques a `SALONES_BLOQUE` en `src/codigos.py`.
+- [ ] Poner la fecha de fin real del semestre.

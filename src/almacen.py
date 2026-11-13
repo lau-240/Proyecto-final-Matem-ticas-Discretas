@@ -12,8 +12,10 @@ import datetime as dt
 import json
 import os
 import shutil
+import threading
 
 from .consultas import Estudiante
+from . import tiempo
 from .datos import campus_base
 
 
@@ -54,9 +56,18 @@ def crear_semestre(base, nombre, fin):
     return estado
 
 
-def cargar_o_crear(base, hoy=None):
-    """Devuelve (campus, horarios, semestre). Crea un semestre vacío si no hay."""
-    hoy = hoy or dt.date.today()
+# Candado: evita que dos sesiones guarden a la vez y una pise el cambio de la otra.
+# (Sirve dentro de un mismo proceso de Streamlit, que es como se ejecuta la app.)
+BLOQUEO = threading.RLock()
+
+
+def cargar_o_crear(base, hoy=None, ahora=None):
+    """Devuelve (campus, horarios, semestre). Crea un semestre vacío si no hay.
+
+    Al cargar se borran los usos de una sola vez (estudio, reunión, práctica) que ya
+    terminaron. `ahora` solo se pasa en las pruebas."""
+    ahora = ahora or tiempo.ahora()
+    hoy = hoy or ahora.date()
     os.makedirs(base, exist_ok=True)
     if not os.path.exists(_ruta(base, "activo.json")):
         nombre, fin = semestre_por_defecto(hoy)
@@ -67,6 +78,7 @@ def cargar_o_crear(base, hoy=None):
         estado = json.load(f)
     campus = campus_base()
     campus.importar(estado)
+    campus.purgar_vencidos(ahora)
     return campus, estado["horarios"], estado["semestre"]
 
 
@@ -77,9 +89,23 @@ def guardar_estado(base, campus, horarios, semestre):
     _escribir(base, estado)
 
 
+def modificar(base, operacion, hoy=None, ahora=None):
+    """Aplica un cambio sobre el estado MÁS RECIENTE y lo guarda, todo bajo el candado.
+
+    `operacion(campus, horarios)` hace el cambio y puede devolver un resultado.
+    Devuelve (campus, horarios, semestre, resultado) con el estado ya actualizado.
+    Así, si dos estudiantes guardan al mismo tiempo, no se pierde ningún cambio.
+    """
+    with BLOQUEO:
+        campus, horarios, semestre = cargar_o_crear(base, hoy, ahora)
+        resultado = operacion(campus, horarios)
+        guardar_estado(base, campus, horarios, semestre)
+        return campus, horarios, semestre, resultado
+
+
 def vencido(semestre, hoy=None):
     """True si ya pasó la fecha de fin del semestre."""
-    hoy = hoy or dt.date.today()
+    hoy = hoy or tiempo.ahora().date()
     return dt.date.fromisoformat(semestre["fin"]) < hoy
 
 

@@ -10,7 +10,7 @@ import unicodedata
 
 from .campus import misma_materia
 from .codigos import asegurar_espacio, normalizar, parsear_codigo
-from .franjas import H_FIN, H_INI, franja, rango
+from .franjas import H_FIN, H_INI, N_HORAS, franja, rango
 
 PLANTILLA = ("dia,hora_inicio,hora_fin,salon,materia\n"
              "Martes,9,11,26J,Calculo II\n"
@@ -182,3 +182,44 @@ def borrar_horario(campus, horarios, alias):
         borrar_clase(campus, horarios, alias, 0)
         borradas += 1
     return borradas
+
+
+def actualizar_clase(campus, horarios, alias, indice, dia, h_ini, h_fin, codigo, materia):
+    """Cambia la clase número `indice` de `alias` por otra (otro salón, día, horas o materia).
+
+    Es "todo o nada": si la clase nueva no se puede guardar (código desconocido,
+    horas inválidas, el salón ya lo ocupa OTRA materia, o ya tienes una clase igual),
+    la clase original queda exactamente como estaba y se explica el motivo.
+    Devuelve (True, "") o (False, motivo).
+    """
+    clases = horarios.get(alias, [])
+    if not 0 <= indice < len(clases):
+        return False, "Esa clase ya no existe."
+    if not (H_INI <= h_ini < h_fin <= H_FIN):
+        return False, f"La franja {h_ini}-{h_fin} no es válida (entre {H_INI} y {H_FIN})."
+    espacio = asegurar_espacio(campus, codigo)
+    if espacio is None:
+        return False, f"Salón '{codigo}' no reconocido."
+    materia = materia.strip() or f"Clase en {espacio.id}"
+
+    f_ini, f_fin = franja(dia, h_ini), franja(dia, h_fin)
+    anterior = list(clases[indice])
+    if anterior == [f_ini, f_fin, espacio.id, materia]:
+        return True, ""                                   # no cambió nada
+
+    borrar_clase(campus, horarios, alias, indice)
+    agregadas, conflictos = aplicar_horario(
+        campus, horarios, alias, [(dia, h_ini, h_fin, espacio.id, materia)])
+    if agregadas == 1:
+        horarios[alias].insert(indice, horarios[alias].pop())   # misma posición en la lista
+        return True, ""
+
+    # No se pudo: se restaura la clase original tal como estaba.
+    a_ini, a_fin, a_espacio, a_materia = anterior
+    dia_a, hora_a = divmod(a_ini, N_HORAS)
+    aplicar_horario(campus, horarios, alias,
+                    [(dia_a, hora_a + H_INI, a_fin - dia_a * N_HORAS + H_INI,
+                      a_espacio, a_materia)])
+    horarios[alias].insert(indice, horarios[alias].pop())
+    return False, (conflictos[0] if conflictos
+                   else "Ya tienes cargada una clase igual a esa.")

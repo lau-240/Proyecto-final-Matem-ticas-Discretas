@@ -18,6 +18,8 @@ def test_materias_distintas_no_se_confunden():
     assert not misma_materia("Fisica Electricidad", "Fisica Mecanica")
     assert not misma_materia("Grupo de Fisica", "Otro grupo")
     assert not misma_materia("", "Calculo")
+    assert not misma_materia("Grupo A", "Grupo B")
+    assert not misma_materia("Fisica A", "Fisica B")
 
 
 def test_misma_clase_de_otro_estudiante_es_confirmacion_no_conflicto():

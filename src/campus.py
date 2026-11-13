@@ -7,6 +7,7 @@ Estados:  ocupado  -> ocupado = 1
           libre    -> info = 1 y ocupado = 0
           desconocido -> info = 0   (sin información NO significa libre)
 """
+import datetime as dt
 import difflib
 import re
 import unicodedata
@@ -14,9 +15,14 @@ from dataclasses import dataclass, asdict
 
 import networkx as nx
 
+from . import tiempo
+
 TIPOS = ("salon", "laboratorio", "cancha_tenis", "cancha_futbol", "piscina",
          "sala_musica")
 MOTIVOS = ("clase", "tutoria", "estudio", "reunion", "practica")
+# Usos de UNA SOLA VEZ: ocupan la franja hasta que termina su próxima vez y luego
+# se borran solos. La clase y la tutoría se repiten cada semana hasta fin de semestre.
+MOTIVOS_UNICA_VEZ = ("estudio", "reunion", "practica")
 
 
 _ROMANOS = {"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"}
@@ -34,7 +40,8 @@ def misma_materia(a, b):
 
     Ignora mayúsculas, tildes y signos, acepta nombres cortados ("... Y SOC" vs
     "... Y SOCIEDAD") y diferencias pequeñas de lectura. Si el nivel final es
-    distinto (Cálculo I vs Cálculo II, Física 1 vs Física 2) son materias distintas.
+    distinto (Cálculo I vs Cálculo II, Física 1 vs Física 2, Grupo A vs Grupo B) son
+    materias distintas.
     """
     na, nb = _normalizar_materia(a), _normalizar_materia(b)
     if na == nb:
@@ -44,7 +51,9 @@ def misma_materia(a, b):
     ta, tb = na.split(), nb.split()
 
     def nivel(tokens):
-        return tokens[-1] if tokens[-1] in _ROMANOS or tokens[-1].isdigit() else None
+        # "II", "2" o una letra suelta ("Grupo A", "Fisica B") distinguen niveles o grupos
+        ultimo = tokens[-1]
+        return ultimo if ultimo in _ROMANOS or ultimo.isdigit() or len(ultimo) == 1 else None
 
     if nivel(ta) != nivel(tb):
         return False
@@ -69,6 +78,7 @@ class Registro:
     motivo: str
     detalle: str = ""
     confirmaciones: int = 1   # cuántos estudiantes reportaron lo mismo
+    vence: str = ""           # "" = se repite cada semana; si no, fecha y hora en que deja de valer
 
 
 class Campus:
@@ -98,12 +108,13 @@ class Campus:
                 return r
         return None
 
-    def ocupar(self, espacio_id, mascara, motivo, detalle=""):
+    def ocupar(self, espacio_id, mascara, motivo, detalle="", ahora=None):
         """Registra un uso. Devuelve True si se aceptó, False si hay conflicto.
 
         Conflicto = (ocupado AND mascara) != 0. Si ya existe un registro equivalente
         (mismo motivo y franjas, y la misma materia aunque esté escrita distinto)
-        se toma como confirmación, no conflicto.
+        se toma como confirmación, no conflicto. Los usos de una sola vez (estudio,
+        reunión, práctica) vencen al terminar la próxima vez que ocurre la franja.
         """
         r = self.registro_de(espacio_id, mascara, motivo, detalle)
         if r is not None:
@@ -113,8 +124,24 @@ class Campus:
             return False
         self.ocupado[espacio_id] |= mascara
         self.info[espacio_id] |= mascara
-        self.registros.append(Registro(espacio_id, mascara, motivo, detalle))
+        vence = ""
+        if motivo in MOTIVOS_UNICA_VEZ:
+            vence = tiempo.fin_de_la_proxima_vez(mascara, ahora or tiempo.ahora()).isoformat()
+        self.registros.append(Registro(espacio_id, mascara, motivo, detalle, vence=vence))
         return True
+
+    def purgar_vencidos(self, ahora):
+        """Borra los usos de una sola vez que ya terminaron. Devuelve cuántos borró.
+
+        El espacio queda SIN INFORMACIÓN en esas franjas (que alguien lo usara una vez
+        no demuestra que esté libre).
+        """
+        vencidos = [r for r in self.registros
+                    if r.vence and dt.datetime.fromisoformat(r.vence) <= ahora]
+        for r in vencidos:
+            self.liberar(r.espacio_id, r.mascara)
+            self.info[r.espacio_id] &= ~r.mascara
+        return len(vencidos)
 
     def liberar(self, espacio_id, mascara):
         """Quita ocupación (ej. una ocupación declarada que expiró)."""

@@ -3,3 +3,4 @@ matplotlib
 pytest
 streamlit
 google-genai
+tzdata
