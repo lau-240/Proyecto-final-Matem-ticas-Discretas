@@ -2,5 +2,5 @@ networkx
 matplotlib
 pytest
 streamlit
-google-genai
-tzdata
+anthropic
+python-dotenv

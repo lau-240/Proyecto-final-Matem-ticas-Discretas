@@ -2,8 +2,7 @@
 import random
 
 from .campus import Campus, Espacio, crear_grafo
-from .codigos import (BLOQUE_LABORATORIOS, ESPECIALES, LABORATORIOS,
-                      SALONES_CATALOGO, SDU)
+from .codigos import BLOQUE_LABORATORIOS, LABORATORIOS, SDU
 from .consultas import Estudiante
 from .franjas import TODAS, N_FRANJAS, N_HORAS, DIAS, rango, franja
 
@@ -19,9 +18,8 @@ ARISTAS_CAMPUS = [
 
 
 def campus_base():
-    """Campus REAL para la app: bloque M, salones confirmados (B, C, SDU, laboratorios)
-    y el grafo. Los demás salones se crean solos cuando alguien carga un horario que
-    los usa (ver codigos.py)."""
+    """Campus REAL para la app: bloque M, salones SDU y el grafo. Los demás salones
+    se crean solos cuando alguien carga un horario que los usa (ver codigos.py)."""
     campus = Campus(crear_grafo(ARISTAS_CAMPUS))
     campus.agregar_espacio(Espacio("M-tenis", "M", "cancha_tenis"))
     campus.agregar_espacio(Espacio("M-futbol", "M", "cancha_futbol"))
@@ -32,10 +30,6 @@ def campus_base():
         campus.agregar_espacio(Espacio(codigo, bloque, "salon", piso))
     for codigo in LABORATORIOS:
         campus.agregar_espacio(Espacio(codigo, BLOQUE_LABORATORIOS, "laboratorio"))
-    for codigo, (bloque, piso) in ESPECIALES.items():
-        campus.agregar_espacio(Espacio(codigo, bloque, "salon", piso))
-    for codigo, bloque in SALONES_CATALOGO.items():
-        campus.agregar_espacio(Espacio(codigo, bloque, "salon"))
     return campus
 
 
