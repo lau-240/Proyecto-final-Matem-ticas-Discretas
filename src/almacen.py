@@ -15,7 +15,7 @@ import shutil
 
 from .consultas import Estudiante
 from .datos import campus_base
-
+from .codigos import asegurar_espacio
 
 def _ruta(base, *partes):
     return os.path.join(base, *partes)
@@ -65,7 +65,9 @@ def cargar_o_crear(base, hoy=None):
         nombre = json.load(f)["nombre"]
     with open(_ruta(base, "semestres", f"{nombre}.json"), encoding="utf-8") as f:
         estado = json.load(f)
-    campus = campus_base()
+        campus = campus_base()
+    for id_espacio in estado.get("espacios_extra", []):
+        asegurar_espacio(campus, id_espacio)
     campus.importar(estado)
     return campus, estado["horarios"], estado["semestre"]
 
@@ -74,6 +76,8 @@ def guardar_estado(base, campus, horarios, semestre):
     estado = campus.exportar()
     estado["semestre"] = semestre
     estado["horarios"] = horarios
+    base_ids = set(campus_base().espacios)
+    estado["espacios_extra"] = [i for i in campus.espacios if i not in base_ids]
     _escribir(base, estado)
 
 
