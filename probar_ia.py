@@ -41,7 +41,10 @@ def main():
 
     cliente = genai.Client(api_key=clave, http_options=types.HttpOptions(timeout=20_000))
     try:
-        disponibles = sorted(m.name.replace("models/", "") for m in cliente.models.list())
+        disponibles = sorted(
+            m.name.replace("models/", "") for m in cliente.models.list()
+            if getattr(m, "supported_actions", None) is None
+            or "generateContent" in m.supported_actions)
     except Exception as error:
         print("NO se pudo conectar con Gemini (clave invalida, sin internet o bloqueado):")
         print("  ", str(error)[:300])
@@ -57,9 +60,10 @@ def main():
         except Exception as error:
             print("   -> FALLA:", str(error)[:200], "\n")
 
-    sugeridos = [m for m in disponibles if "flash" in m and "gemini" in m][:10]
-    print("Modelos 'flash' disponibles (puedes ponerlos en MODELO_GEMINI, separados por coma):")
-    print("  " + ", ".join(sugeridos))
+    print("Modelos que tu clave puede usar (ponlos en MODELO_GEMINI, separados por coma;")
+    print("los 'flash' son rápidos y gratuitos):")
+    for modelo in disponibles:
+        print("  ", modelo)
 
 
 if __name__ == "__main__":

@@ -60,9 +60,10 @@ python -m pytest               # pruebas
   Si se definen las dos, gana la variable de entorno. Nunca suban la clave a GitHub ni
   compartan el proyecto comprimido con `secrets.toml` adentro.
 - **Modelos de IA:** `src/lector_imagen.py` prueba en orden los modelos de
-  `MODELOS_POR_DEFECTO`. Para ver cuáles tiene disponibles tu clave, ejecuten
-  `python listar_modelos.py` (necesita `GEMINI_API_KEY` como variable de entorno). Para usar
-  otros, definan `MODELO_GEMINI` (uno o varios separados por coma).
+  `MODELOS_POR_DEFECTO`. Para comprobar la clave, ver si cada modelo responde y listar los
+  que tiene disponibles tu clave, ejecuten `python probar_ia.py` (lee la clave de la
+  variable de entorno o de `secrets.toml`). Para usar otros, definan `MODELO_GEMINI` (uno o
+  varios separados por coma).
 
 ## Estructura
 
@@ -70,7 +71,7 @@ python -m pytest               # pruebas
 |---|---|
 | `app.py` | Interfaz Streamlit: buscar libre, qué hay, tutorías, registrar, mi horario, semestre |
 | `iniciar.bat` | Atajo de Windows: activa el entorno y abre la app |
-| `listar_modelos.py` | Lista los modelos de Gemini disponibles para tu clave |
+| `probar_ia.py` | Prueba la clave de Gemini, cada modelo del lector y lista los disponibles |
 | `main.py` | Caso conocido, conflictos, tutorías, simulación y análisis de red |
 | `src/franjas.py` | Franjas horarias como bits (6 días x 16 horas, 6:00-22:00) |
 | `src/tiempo.py` | Hora de Colombia y vencimiento de los usos de una sola vez |
