@@ -34,8 +34,9 @@ python -m pytest               # pruebas
 
 ### Configuración
 
-- **Clave de administrador** (para cerrar el semestre): variable de entorno `CLAVE_ADMIN`.
-  Si no se define, la clave es `cambiar-esta-clave`: **cámbienla**.
+- **Clave de administrador** (para cerrar el semestre): `CLAVE_ADMIN`, como variable de
+  entorno o en `.streamlit/secrets.toml` (igual que la clave de la IA, ver abajo). No tiene
+  valor por defecto: si no se define, la app avisa y nadie puede cerrar el semestre.
 - **Leer el horario desde una foto** es OPCIONAL y usa la IA de Google Gemini. Requiere una
   clave de API gratis (https://aistudio.google.com/apikey). Sin ella, se puede cargar el
   horario a mano, clase por clase. La clave se puede dar de dos formas:
@@ -45,6 +46,7 @@ python -m pytest               # pruebas
 
      ```toml
      GEMINI_API_KEY = "tu-clave"
+     CLAVE_ADMIN = "mi-clave"
      ```
 
   2. Variable de entorno. En PowerShell:

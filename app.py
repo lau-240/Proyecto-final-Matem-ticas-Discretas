@@ -3,6 +3,7 @@
 Uso:  python -m streamlit run app.py
 """
 import datetime as dt
+import hmac
 import os
 
 import streamlit as st
@@ -19,16 +20,18 @@ from src.horario_csv import (actualizar_clase, aplicar_horario, borrar_clase,
                              borrar_horario, leer_horario)
 from src.lector_imagen import imagen_a_csv
 
-# Pasa la clave de .streamlit/secrets.toml a una variable de entorno,
-# que es donde la busca src/lector_imagen.py
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        os.environ.setdefault("GEMINI_API_KEY", st.secrets["GEMINI_API_KEY"])
-except Exception:
-    pass  # si no hay secrets.toml, se usa la variable de entorno normal
+# Pasa las claves de .streamlit/secrets.toml a variables de entorno (src/lector_imagen.py
+# busca allí la de la IA). Si se definen en los dos sitios, gana la variable de entorno.
+for _nombre in ("GEMINI_API_KEY", "CLAVE_ADMIN"):
+    try:
+        if _nombre in st.secrets:
+            os.environ.setdefault(_nombre, str(st.secrets[_nombre]))
+    except Exception:
+        break  # no hay secrets.toml: se usan solo las variables de entorno
 
 BASE = os.environ.get("DATOS_DIR", "datos")
-CLAVE_ADMIN = os.environ.get("CLAVE_ADMIN", "cambiar-esta-clave")
+# Sin valor por defecto: si nadie configuró la clave, nadie puede cerrar el semestre.
+CLAVE_ADMIN = os.environ.get("CLAVE_ADMIN", "")
 
 NOMBRES_DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 ETIQ_TIPO = {"salon": "Salón", "laboratorio": "Laboratorio", "cancha_tenis": "Cancha de tenis",
@@ -449,10 +452,15 @@ def vista_semestre():
     c3.metric("Cobertura de datos", f"{cobertura(campus, TODAS):.0%}")
     st.caption("Los horarios vencen al terminar el semestre. Cerrar el semestre "
                "borra (o archiva) los datos y empieza uno nuevo vacío.")
+    if not CLAVE_ADMIN:
+        st.warning("No hay clave de administrador configurada, así que el semestre no se "
+                   "puede cerrar. Defínanla en `CLAVE_ADMIN` (variable de entorno o "
+                   "`.streamlit/secrets.toml`).")
+        return
     clave = st.text_input("Clave de administrador", type="password", key="s_clave")
     if not clave:
         return
-    if clave != CLAVE_ADMIN:
+    if not hmac.compare_digest(clave.encode(), CLAVE_ADMIN.encode()):
         st.error("Clave incorrecta.")
         return
     nuevo = st.text_input("Nombre del semestre nuevo (ej. 2027-1)", key="s_nuevo")

@@ -134,6 +134,27 @@ def test_semestre_vencido_bloquea_la_app(tmp_path, monkeypatch):
     assert len(at.tabs) == 0          # no se muestran las pestañas normales
 
 
+def test_sin_clave_admin_no_se_puede_cerrar_semestre(tmp_path, monkeypatch):
+    monkeypatch.delenv("CLAVE_ADMIN", raising=False)
+    at = _app(tmp_path, monkeypatch, fin="2020-01-01")
+    at.run()
+    assert not at.exception
+    assert any("No hay clave de administrador" in w.value for w in at.warning)
+    assert not [t for t in at.text_input if t.key == "s_clave"]
+
+
+def test_clave_admin_incorrecta_y_correcta(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAVE_ADMIN", "clave-de-prueba")
+    at = _app(tmp_path, monkeypatch, fin="2020-01-01")
+    at.run()
+    at.text_input(key="s_clave").set_value("otra").run()
+    assert any("Clave incorrecta" in e.value for e in at.error)
+    assert not [t for t in at.text_input if t.key == "s_nuevo"]
+    at.text_input(key="s_clave").set_value("clave-de-prueba").run()
+    assert not at.exception
+    assert [t for t in at.text_input if t.key == "s_nuevo"]
+
+
 def _app_con_horario(tmp_path, monkeypatch):
     """App con un semestre vigente y el horario de 'ana1' ya guardado."""
     from src import almacen
