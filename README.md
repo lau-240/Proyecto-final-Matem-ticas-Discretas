@@ -1,5 +1,7 @@
 # Disponibilidad y uso de espacios del campus (MAT 4021)
 
+[![Pruebas](https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas/actions/workflows/pruebas.yml/badge.svg)](https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas/actions/workflows/pruebas.yml)
+
 Modelo con álgebra booleana (ocupación por franja), grafo ponderado de bloques
 (espacio libre más cercano con Dijkstra) y análisis de redes. Incluye una interfaz
 web (Streamlit) donde cada estudiante carga su horario y consulta qué espacios
@@ -84,6 +86,13 @@ python -m pytest               # pruebas
 | `src/datos.py` | Campus real, campus de simulación, caso conocido |
 | `src/metricas.py` | Modelo de 3 estados vs. ingenuo de 2 estados |
 | `tests/` | Pruebas, incluido el caso con resultado conocido |
+| `pytest.ini` | Configuración de las pruebas (solo busca en `tests/`) |
+| `.github/workflows/pruebas.yml` | CI: corre las pruebas en GitHub en cada push y pull request |
+
+## Antes de subir cambios
+
+Corran `python -m pytest` y suban solo si todo pasa. GitHub vuelve a correr las pruebas
+en cada push (pestaña *Actions*); si algo falla, el commit queda marcado con una ✗.
 
 ## Modelo en una línea
 
