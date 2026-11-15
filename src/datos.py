@@ -5,6 +5,7 @@ from .campus import Campus, Espacio, crear_grafo
 from .codigos import BLOQUE_LABORATORIOS, LABORATORIOS, SDU
 from .consultas import Estudiante
 from .franjas import TODAS, N_FRANJAS, N_HORAS, DIAS, rango, franja
+from .codigos import BLOQUE_LABORATORIOS, LABORATORIOS, SDU, parsear_codigo
 
 BLOQUES = list("ABCDEFGHIJKLM")
 
@@ -17,25 +18,34 @@ ARISTAS_CAMPUS = [
 ]
 
 
+
+
+def _rango(sufijo, *tramos):
+    """_rango('K', (41, 46)) -> ['41K', '42K', ..., '46K']"""
+    return [f"{n}{sufijo}" for a, b in tramos for n in range(a, b + 1)]
+
+
+SALONES_CATALOGO = (
+    _rango("G1", (21, 25), (31, 35), (41, 45), (51, 54))
+    + _rango("G2", (21, 25), (31, 38))
+    + _rango("K", (6, 6), (21, 21), (31, 31), (41, 46), (91, 97))
+    + _rango("J", (11, 18), (21, 28), (31, 38))
+)
 def campus_base():
     """Campus REAL para la app: bloque M, salones SDU y el grafo. Los demás salones
     se crean solos cuando alguien carga un horario que los usa (ver codigos.py)."""
     campus = Campus(crear_grafo(ARISTAS_CAMPUS))
     campus.agregar_espacio(Espacio("M-tenis", "M", "cancha_tenis"))
     campus.agregar_espacio(Espacio("M-futbol", "M", "cancha_futbol"))
-    campus.agregar_espacio(Espacio("M-piscina", "git diffM", "piscina"))
+    campus.agregar_espacio(Espacio("M-piscina", "M", "piscina"))
     for i in range(1, 4):
         campus.agregar_espacio(Espacio(f"M-musica{i}", "M", "sala_musica"))
     for codigo, (bloque, piso) in SDU.items():
         campus.agregar_espacio(Espacio(codigo, bloque, "salon", piso))
     for codigo in LABORATORIOS:
         campus.agregar_espacio(Espacio(codigo, BLOQUE_LABORATORIOS, "laboratorio"))
-
-        # Salones del bloque G (lados G1 y G2)
-    g1 = [f"{n}G1" for n in (*range(41, 46), *range(31, 36), *range(21, 26))]
-    g2 = [f"{n}G2" for n in (*range(31, 39), *range(21, 26))]
-    for codigo in g1 + g2:
-        campus.agregar_espacio(Espacio(codigo, "G", "salon"))    
+    for codigo in SALONES_CATALOGO:
+        campus.agregar_espacio(parsear_codigo(codigo))
     return campus
 
 
