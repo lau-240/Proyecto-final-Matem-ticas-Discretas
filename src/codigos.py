@@ -29,9 +29,10 @@ _PATRON = re.compile(r"^(\d+)([A-M])(\d?)$")
 
 
 def normalizar(codigo):
-    """Quita espacios y pasa a mayúsculas: ' 37g2 ' -> '37G2'."""
-    return re.sub(r"\s+", "", str(codigo)).upper()
-
+    """Quita espacios y pasa a mayúsculas: ' 37g2 ' -> '37G2'.
+    También acepta '37-G2' -> '37G2'."""
+    c = re.sub(r"\s+", "", str(codigo)).upper()
+    return re.sub(r"^(\d+)-([A-M]\d?)$", r"\1\2", c)
 
 def parsear_codigo(codigo):
     """Devuelve el Espacio que corresponde al código, o None si no se reconoce."""

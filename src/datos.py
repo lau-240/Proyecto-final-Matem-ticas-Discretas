@@ -23,13 +23,19 @@ def campus_base():
     campus = Campus(crear_grafo(ARISTAS_CAMPUS))
     campus.agregar_espacio(Espacio("M-tenis", "M", "cancha_tenis"))
     campus.agregar_espacio(Espacio("M-futbol", "M", "cancha_futbol"))
-    campus.agregar_espacio(Espacio("M-piscina", "M", "piscina"))
+    campus.agregar_espacio(Espacio("M-piscina", "git diffM", "piscina"))
     for i in range(1, 4):
         campus.agregar_espacio(Espacio(f"M-musica{i}", "M", "sala_musica"))
     for codigo, (bloque, piso) in SDU.items():
         campus.agregar_espacio(Espacio(codigo, bloque, "salon", piso))
     for codigo in LABORATORIOS:
         campus.agregar_espacio(Espacio(codigo, BLOQUE_LABORATORIOS, "laboratorio"))
+
+        # Salones del bloque G (lados G1 y G2)
+    g1 = [f"{n}G1" for n in (*range(41, 46), *range(31, 36), *range(21, 26))]
+    g2 = [f"{n}G2" for n in (*range(31, 39), *range(21, 26))]
+    for codigo in g1 + g2:
+        campus.agregar_espacio(Espacio(codigo, "G", "salon"))    
     return campus
 
 
