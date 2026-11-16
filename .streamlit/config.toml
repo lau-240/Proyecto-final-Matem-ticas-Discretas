@@ -1,0 +1,4 @@
+# Configuración de la interfaz (sí se sube a GitHub; las claves van en secrets.toml)
+[client]
+# Oculta el botón "Deploy" y las opciones de desarrollador de la barra superior
+toolbarMode = "viewer"

@@ -1,0 +1,359 @@
+% Documento escrito final (paper) - Proyecto final MAT 4021 Matemáticas Discretas
+% Compilar:  tectonic paper.tex      (o pdflatex/latexmk con una distribución TeX)
+\documentclass[conference,a4paper]{IEEEtran}
+
+\usepackage{iftex}
+\ifTUTeX
+  % XeLaTeX / LuaLaTeX (Tectonic usa XeTeX)
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes}[Extension=.otf, UprightFont=*-regular,
+    BoldFont=*-bold, ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+\else
+  % pdfLaTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{newtxtext}
+\fi
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+
+\newtheorem{definicion}{Definición}
+\newtheorem{proposicion}{Proposición}
+
+\newcommand{\repo}{\url{https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas}}
+\newcommand{\F}{\mathcal{F}}
+
+\begin{document}
+
+\title{Disponibilidad y uso de espacios del campus:\\
+un modelo con álgebra booleana y grafos ponderados}
+
+\author{\IEEEauthorblockN{Laura Vanessa Acuña Ordóñez, Isabella Barrios Pico, Ángel Gabriel Carrillo Henao,\\
+Montserrat Mariottis Martínez, Javier Enrique Torregrosa Lascano}
+\IEEEauthorblockA{MAT 4021 Matemáticas Discretas -- Universidad del Norte\\
+Barranquilla, Colombia\\
+Repositorio: \repo}}
+
+\maketitle
+
+\begin{abstract}
+Encontrar un salón libre para estudiar o reunirse es una tarea frecuente en el
+campus, y suele resolverse caminando de bloque en bloque. Este trabajo propone un
+modelo discreto para responder dos preguntas: \emph{qué espacios están libres en un
+intervalo de tiempo} y \emph{cuál de ellos queda más cerca}. La ocupación semanal de
+cada espacio se representa como un vector de 96 bits, uno por franja horaria. Las
+consultas y la detección de conflictos se reducen a operaciones del álgebra
+booleana $(\mathcal{P}(\F),\cup,\cap,\overline{\phantom{x}})$. Se distingue entre
+\emph{libre} y \emph{sin información} mediante un segundo vector de bits, lo que da un
+modelo de tres estados. El campus se modela como un grafo ponderado de bloques, en el
+que el algoritmo de Dijkstra ordena los espacios libres por minutos de caminata y las
+medidas de centralidad identifican los bloques más accesibles y los de paso. El
+modelo se implementó en Python con una interfaz web en Streamlit y se validó con un
+caso de resultado conocido, 104 pruebas automáticas y una simulación. En la
+simulación, con 21\,\% de cobertura, el modelo ingenuo de dos estados se equivoca en
+33\,\% de las respuestas ``libre''. El modelo de tres estados no responde ``libre''
+sin información que lo respalde.
+\end{abstract}
+
+\begin{IEEEkeywords}
+álgebra booleana, vectores de bits, grafos ponderados, Dijkstra, centralidad,
+asignación de espacios.
+\end{IEEEkeywords}
+
+\section{Introducción}
+En la universidad los horarios de clase ocupan los salones solo en ciertas franjas.
+El resto del tiempo los espacios podrían usarse para estudiar, hacer tutorías o
+reunirse, pero no existe un lugar donde consultar esa disponibilidad. Un estudiante
+que busca un salón libre suele recorrer varios bloques sin éxito.
+
+El problema tiene una estructura discreta natural. El tiempo se divide en franjas de
+una hora, un horario es un subconjunto de franjas y el campus es un conjunto de
+bloques unidos por caminos. Este trabajo aprovecha esa estructura con dos
+herramientas del curso:
+\begin{enumerate}
+  \item \textbf{Álgebra booleana y conjuntos}: cada horario es un subconjunto del
+  conjunto de franjas, codificado como un entero cuyos bits indican pertenencia.
+  \item \textbf{Teoría de grafos}: los bloques forman un grafo no dirigido con pesos en
+  minutos de caminata, sobre el que se calculan caminos mínimos y centralidades.
+\end{enumerate}
+
+La contribución principal es un modelo de \emph{tres estados} (ocupado, libre,
+desconocido). Evita el error de suponer que un espacio sin información está libre.
+El sistema se alimenta de los horarios que cargan los propios estudiantes, de modo que
+la cobertura de la información crece con el uso.
+
+\section{Marco teórico}
+
+\subsection{Conjuntos y álgebra booleana}
+Sea $\F$ un conjunto finito. El conjunto potencia $\mathcal{P}(\F)$ con la unión, la
+intersección y el complemento forma un álgebra booleana con elemento cero
+$\varnothing$ y elemento unidad $\F$~\cite{rosen}. Si $|\F|=n$, la función
+\[
+  \chi:\mathcal{P}(\F)\to\{0,1\}^n,\qquad \chi(S)_f = \begin{cases}1 & f\in S\\ 0 & f\notin S\end{cases}
+\]
+es un isomorfismo de álgebras booleanas entre $\mathcal{P}(\F)$ y $\{0,1\}^n$ con las
+operaciones bit a bit OR, AND y NOT. Así, cada operación de conjuntos se calcula con
+una sola instrucción sobre enteros: $S\cup T\mapsto s\,|\,t$, $S\cap T\mapsto s\,\&\,t$,
+$\overline{S}\mapsto \lnot s\,\&\,U$ (donde $U=2^n-1$ representa a $\F$), y
+$S\subseteq T \iff s\,\&\,t = s$.
+
+\subsection{Grafos ponderados y caminos mínimos}
+Un grafo ponderado es una terna $G=(V,E,w)$ con $w:E\to\mathbb{R}_{>0}$. La distancia
+$d(u,v)$ es el peso mínimo de un camino entre $u$ y $v$. El algoritmo de
+Dijkstra~\cite{dijkstra} calcula $d(s,\cdot)$ desde un vértice $s$ en
+$O((|V|+|E|)\log|V|)$ con una cola de prioridad, siempre que los pesos sean no
+negativos.
+
+\subsection{Centralidad}
+La \emph{cercanía} de un vértice $v$ es
+$C(v)=\dfrac{|V|-1}{\sum_{u\neq v} d(u,v)}$, y es alta para los vértices desde los que
+se llega rápido a todos los demás. La \emph{intermediación}
+\[
+  B(v)=\sum_{s\neq v\neq t}\frac{\sigma_{st}(v)}{\sigma_{st}},
+\]
+donde $\sigma_{st}$ es el número de caminos mínimos de $s$ a $t$ y $\sigma_{st}(v)$
+los que pasan por $v$, mide cuánto actúa $v$ como lugar de paso~\cite{freeman}. En el
+cálculo se usa normalizada.
+
+\section{Modelo}
+
+\subsection{Franjas horarias}
+La semana se divide en franjas de una hora, de lunes a sábado, entre las 6:00 y las
+22:00: $6\times16=96$ franjas. La franja del día $d\in\{0,\dots,5\}$ (0 = lunes) que
+empieza a la hora $h$ es
+\[
+  f(d,h) = 16\,d + (h-6), \qquad \F=\{0,1,\dots,95\}.
+\]
+Un intervalo del día $d$ entre $h_1$ y $h_2$ (sin incluir $h_2$) es el conjunto
+$W=\{f(d,h): h_1\le h<h_2\}$. Su máscara es un bloque de $h_2-h_1$ bits consecutivos,
+$\chi(W) = (2^{h_2-h_1}-1)\cdot 2^{f(d,h_1)}$.
+
+\subsection{Modelo de tres estados}
+Para cada espacio $e$ se guardan dos subconjuntos de $\F$:
+\begin{itemize}
+  \item $O_e$: franjas en las que $e$ está \emph{ocupado} (clase, tutoría o uso
+  registrado);
+  \item $I_e$: franjas cuyo estado es \emph{conocido}.
+\end{itemize}
+
+\begin{definicion}
+El estado de $e$ en la franja $f$ es
+\[
+\text{estado}(e,f)=\begin{cases}
+\text{ocupado} & f\in O_e,\\
+\text{libre} & f\in I_e\setminus O_e,\\
+\text{desconocido} & f\notin I_e.
+\end{cases}
+\]
+\end{definicion}
+
+Toda ocupación registrada es también información, así que el sistema mantiene el
+invariante $O_e\subseteq I_e$. Por tanto las tres clases forman una partición de $\F$.
+
+\begin{definicion}[Disponibilidad en una ventana]
+Un espacio $e$ está \emph{disponible} en la ventana $W\subseteq\F$ si
+\[
+  O_e\cap W=\varnothing \quad\text{y}\quad W\subseteq I_e,
+\]
+es decir, en bits: $o_e\,\&\,w = 0$ y $i_e\,\&\,w = w$.
+\end{definicion}
+
+Si el usuario lo pide de forma explícita, se relaja la segunda condición y se aceptan
+espacios \emph{sin conflicto conocido}, aunque falte información. En la interfaz, una
+ventana con parte de sus franjas conocidas y ninguna ocupada se muestra como
+\emph{parcial}.
+
+\subsection{Registro de usos y conflictos}
+Registrar un uso de $e$ en $W$ se acepta si y solo si $O_e\cap W=\varnothing$. En ese
+caso se actualiza $O_e\leftarrow O_e\cup W$ e $I_e\leftarrow I_e\cup W$, lo que
+preserva el invariante. Si otro estudiante reporta el mismo uso (mismo espacio,
+franjas, motivo y materia, aunque la escriba distinto), no se cuenta como conflicto
+sino como una confirmación adicional.
+
+\begin{proposicion}
+El costo de decidir un conflicto o la disponibilidad de un espacio es $O(1)$
+operaciones sobre enteros de 96 bits, independientemente de cuántas franjas tenga
+$W$.
+\end{proposicion}
+
+Las clases y tutorías se repiten cada semana hasta el fin del semestre. Los usos de
+una sola vez (estudio, reunión, práctica) vencen al terminar su próxima ocurrencia.
+Al vencer, el sistema hace $O_e\leftarrow O_e\setminus W$ e
+$I_e\leftarrow I_e\setminus W$: que alguien haya usado un salón una vez no prueba que
+quede libre después.
+
+\subsection{Grafo del campus}
+Los vértices son los bloques del campus (A--M y el bloque de laboratorios LAB,
+$|V|=14$). Las aristas unen bloques vecinos y su peso son los minutos de caminata
+($|E|=17$, Fig.~\ref{fig:grafo}). Cada espacio pertenece a un bloque, así que la
+distancia de un bloque origen $s$ a un espacio $e$ es $d(s,\text{bloque}(e))$.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  v/.style={circle,draw,fill=blue!10,minimum size=6.5mm,inner sep=0pt,font=\footnotesize},
+  lab/.style={font=\scriptsize,fill=white,inner sep=1pt}, scale=1]
+  \foreach \n/\x in {A/0,B/1.2,C/2.4,D/3.6,E/4.8,F/6}
+    \node[v] (\n) at (\x,0) {\n};
+  \foreach \n/\x in {L/0,K/1.2,J/2.4,I/3.6,H/4.8,G/6}
+    \node[v] (\n) at (\x,-2) {\n};
+  \node[v] (M) at (0,-3.4) {M};
+  \node[v,font=\tiny] (LAB) at (1.4,-3.4) {LAB};
+  \draw (A)--node[lab]{2}(B); \draw (B)--node[lab]{2}(C);
+  \draw (C)--node[lab]{3}(D); \draw (D)--node[lab]{2}(E);
+  \draw (E)--node[lab]{2}(F); \draw (F)--node[lab]{3}(G);
+  \draw (G)--node[lab]{2}(H); \draw (H)--node[lab]{2}(I);
+  \draw (I)--node[lab]{3}(J); \draw (J)--node[lab]{2}(K);
+  \draw (K)--node[lab]{2}(L); \draw (L)--node[lab]{6}(M);
+  \draw (L)--node[lab]{3}(LAB);
+  \draw (B) to[bend left=35] node[lab]{4} (E);
+  \draw (C) to[bend left=35] node[lab]{5} (F);
+  \draw (F)--node[lab]{5}(I);
+  \draw (H) to[bend left=30] node[lab]{4} (K);
+\end{tikzpicture}
+\caption{Grafo de bloques del campus. Los pesos son minutos de caminata de ejemplo
+(\texttt{ARISTAS\_CAMPUS} en \texttt{src/datos.py}).}
+\label{fig:grafo}
+\end{figure}
+
+\subsection{Espacio libre más cercano}
+Dada una ventana $W$, un bloque origen $s$ y opcionalmente un tipo de espacio (salón,
+laboratorio, cancha, piscina, sala de música), el sistema:
+\begin{enumerate}
+  \item calcula $d(s,\cdot)$ con Dijkstra;
+  \item filtra los espacios disponibles en $W$ con las operaciones de bits;
+  \item ordena el resultado por $(d(s,\text{bloque}(e)),\ \text{id}(e))$.
+\end{enumerate}
+El costo total es $O((|V|+|E|)\log|V| + n\log n)$ para $n$ espacios.
+
+Si el estudiante cargó su horario, el origen $s$ se infiere. Es el bloque de la clase
+en curso; si no hay ninguna, el de la última clase que terminó antes; si tampoco la
+hay, el de la próxima clase. Sin horario, el estudiante indica el bloque a mano.
+
+\section{Implementación}
+El sistema está escrito en Python. Usa NetworkX~\cite{networkx} para el grafo y
+Streamlit para la interfaz web. Los módulos principales son:
+\begin{itemize}
+  \item \texttt{franjas.py}: franjas como bits (máscaras, rangos, conteo).
+  \item \texttt{campus.py}: espacios, vectores $O_e$ e $I_e$, registros, conflictos y
+  grafo.
+  \item \texttt{consultas.py}: disponibilidad, ranking por cercanía, tutorías,
+  ubicación inferida y cobertura.
+  \item \texttt{codigos.py}: traduce códigos de salón (\texttt{26J}, \texttt{37G2},
+  \texttt{SDU9}, \texttt{L1-5}) a su bloque.
+  \item \texttt{almacen.py}: guardado en JSON por semestre, con candado de escritura.
+  \item \texttt{lector\_imagen.py}: lectura opcional de la foto del horario con un
+  modelo de IA. El resultado siempre lo revisa el estudiante antes de guardarlo.
+\end{itemize}
+
+La interfaz tiene seis pestañas: \emph{Buscar libre}, \emph{¿Qué hay?},
+\emph{Tutorías}, \emph{Registrar}, \emph{Mi horario} y \emph{Semestre}. Cada
+estudiante se identifica con un código inventado, no con su nombre. Los horarios vencen
+con el semestre y el administrador puede archivarlos o borrarlos.
+
+\section{Validación y resultados}
+
+\subsection{Caso de resultado conocido}
+Se construyó un campus pequeño, con tres bloques y aristas $A\!-\!B$ (2 min) y
+$B\!-\!C$ (3 min). Tiene cuatro salones con estados conocidos el lunes de 10:00 a
+12:00: A1 ocupado por una tutoría, A2 sin información, y B1 y C1 libres y
+confirmados. La estudiante tiene clase en A1 de 8:00 a 10:00, así que a las 10:00 su
+ubicación inferida es el bloque A. El resultado esperado y el obtenido coinciden:
+\begin{itemize}
+  \item solo con datos confirmados: \textbf{B1 a 2 min};
+  \item aceptando desconocidos: \textbf{A2 a 0 min}, marcado como desconocido;
+  \item registrar B1 de 14 a 16 y luego de 15 a 17 da conflicto, porque
+  $W_1\cap W_2=\{15\text{:}00\}\neq\varnothing$.
+\end{itemize}
+
+\subsection{Pruebas automáticas}
+El repositorio incluye 104 pruebas con \texttt{pytest}. Cubren franjas, conflictos,
+vencimiento de usos, códigos de salón, lectura de horarios, almacenamiento
+concurrente y la interfaz. Se ejecutan en cada \emph{push} con GitHub Actions. Las 104
+pasan.
+
+\subsection{Simulación: tres estados frente a dos}
+Se generó una ocupación ``real'' aleatoria para un campus de 42 espacios. Cada bloque
+de dos horas está ocupado con probabilidad $0{,}45$. Luego se revela cada par
+(espacio, franja) con probabilidad igual a la \emph{cobertura}. Se compara el modelo
+de tres estados ($\text{libre}=I\cap\overline{O}$) con un modelo ingenuo de dos
+estados ($\text{libre}=\overline{O}$, sin información $=$ libre). La precisión es la
+fracción de respuestas ``libre'' que son correctas.
+
+\begin{table}[h]
+\centering
+\caption{Precisión de la respuesta ``libre'' según la cobertura.}
+\label{tab:sim}
+\begin{tabular}{@{}ccc@{}}
+\toprule
+Cobertura & Modelo 3 estados & Modelo ingenuo \\
+\midrule
+0,21 & 1,00 & 0,67 \\
+0,41 & 1,00 & 0,73 \\
+0,61 & 1,00 & 0,80 \\
+0,80 & 1,00 & 0,89 \\
+0,95 & 1,00 & 0,98 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con poca información (21\,\%), una de cada tres respuestas ``libre'' del modelo
+ingenuo es falsa. La precisión de 1,00 del modelo de tres estados se da \emph{por
+construcción}, porque la simulación supone que los datos confirmados son correctos.
+En la práctica el riesgo está en las confirmaciones erróneas, y por eso el sistema
+cuenta cuántos estudiantes reportan lo mismo. El costo del modelo de tres estados es
+la \emph{exhaustividad}: con poca cobertura encuentra menos espacios. Por eso la
+interfaz permite incluir los desconocidos, marcados como tales.
+
+\subsection{Análisis de la red}
+Sobre el grafo de la Fig.~\ref{fig:grafo}, los bloques con mayor cercanía son G y H
+($C=0{,}137$) y F ($0{,}134$). Son los mejores lugares para ubicar servicios comunes.
+Los de mayor intermediación son F ($B=0{,}513$), G y H ($0{,}385$). Por ellos pasa la
+mayor parte de los recorridos más cortos, y un cierre en F alargaría muchos caminos.
+
+\section{Limitaciones}
+\begin{itemize}
+  \item Los pesos del grafo son valores de ejemplo y deben medirse en el campus.
+  \item Un espacio solo se conoce si alguien lo registró o cargó un horario que lo
+  usa. ``Sin información'' no significa ``libre''.
+  \item El código estudiantil no es secreto. Quien conozca el de otra persona puede
+  modificar su horario.
+  \item La persistencia en JSON con candado sirve para un solo proceso. Con muchos
+  usuarios simultáneos convendría una base de datos.
+\end{itemize}
+
+\section{Conclusiones}
+El álgebra booleana sobre vectores de bits da una representación compacta y exacta de
+los horarios. Con ella, las preguntas de disponibilidad y conflicto se reducen a
+operaciones de tiempo constante. Separar ``ocupado'' de ``conocido'' convierte un
+modelo ingenuo, que puede equivocarse en un tercio de los casos, en uno que no afirma
+nada sin respaldo. El grafo ponderado y Dijkstra convierten la lista de espacios
+libres en una recomendación útil (el más cercano), y las centralidades describen la
+estructura del campus. Como trabajo futuro quedan medir los tiempos reales de
+caminata, cargar horarios reales y comparar, con una encuesta, el tiempo de búsqueda
+manual frente al del modelo.
+
+\section*{Código fuente}
+Todo el código, las pruebas y las instrucciones para ejecutarlo están en:
+\begin{center}\footnotesize\repo\end{center}
+
+\begin{thebibliography}{9}
+\bibitem{rosen} K.~H. Rosen, \emph{Matemática discreta y sus aplicaciones}, 7.\textordfeminine{} ed.
+Madrid: McGraw-Hill, 2012.
+\bibitem{dijkstra} E.~W. Dijkstra, ``A note on two problems in connexion with
+graphs,'' \emph{Numerische Mathematik}, vol.~1, pp.~269--271, 1959.
+\bibitem{freeman} L.~C. Freeman, ``A set of measures of centrality based on
+betweenness,'' \emph{Sociometry}, vol.~40, no.~1, pp.~35--41, 1977.
+\bibitem{networkx} A.~A. Hagberg, D.~A. Schult y P.~J. Swart, ``Exploring network
+structure, dynamics, and function using NetworkX,'' en \emph{Proc. 7th Python in
+Science Conference (SciPy)}, 2008, pp.~11--15.
+\end{thebibliography}
+
+\end{document}

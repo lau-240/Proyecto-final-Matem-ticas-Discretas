@@ -184,7 +184,8 @@ def buscar_cercano(dia, hora, duracion):
                     key="b_modo", horizontal=True)
     origen = None
     if modo == "Elegir bloque":
-        origen = st.selectbox("Mi bloque", OPCIONES_BLOQUE, key="bc_bloque")
+        origen = st.selectbox("Mi bloque", OPCIONES_BLOQUE, key="bc_bloque",
+                              format_func=lambda b: f"Bloque {b}")
     elif horarios:
         alias = st.text_input("Mi código estudiantil", key="b_alias").strip()
         if alias in horarios:
@@ -209,13 +210,20 @@ def buscar_cercano(dia, hora, duracion):
         tipo_f = None if tipo == "cualquiera" else tipo
         ranking = ranking_cercanos(campus, origen, mascara, tipo_f, desconocidos)[:8]
         if ranking:
+            def confirmado(e):
+                return campus.info[e.id] & mascara == mascara
             mejor, minutos = ranking[0]
-            st.success(f"Más cercano: {mejor.id} (bloque {mejor.bloque}), "
-                       f"a {minutos} min caminando.")
+            texto = f"{mejor.id} (bloque {mejor.bloque}), a {minutos} min caminando."
+            if confirmado(mejor):
+                st.success(f"🟢 Más cercano libre: {texto}")
+            else:
+                # Sin información no significa libre: no se pinta en verde.
+                st.warning(f"⚪ Más cercano sin ocupación registrada: {texto} "
+                           "No hay datos de esa franja, así que podría estar ocupado.")
             st.table([{"Espacio": e.id, "Bloque": e.bloque, "Tipo": ETIQ_TIPO[e.tipo],
                        "Minutos": m,
-                       "Datos": "confirmado" if campus.info[e.id] & mascara == mascara
-                       else "sin información"} for e, m in ranking])
+                       "Datos": "confirmado" if confirmado(e) else "sin información"}
+                      for e, m in ranking])
         else:
             st.warning("No hay espacios libres confirmados para esa franja. "
                        "Prueba incluyendo los que no tienen información.")

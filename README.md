@@ -86,8 +86,24 @@ python -m pytest               # pruebas
 | `src/datos.py` | Campus real, campus de simulación, caso conocido |
 | `src/metricas.py` | Modelo de 3 estados vs. ingenuo de 2 estados |
 | `tests/` | Pruebas, incluido el caso con resultado conocido |
+| `docs/paper/` | Documento escrito final (`paper.tex` y `paper.pdf`) |
+| `docs/presentacion/` | Diapositivas en Beamer (`presentacion.tex` y `presentacion.pdf`) |
+| `.streamlit/config.toml` | Ajustes de la interfaz (oculta la barra de desarrollador) |
 | `pytest.ini` | Configuración de las pruebas (solo busca en `tests/`) |
 | `.github/workflows/pruebas.yml` | CI: corre las pruebas en GitHub en cada push y pull request |
+
+## Documento y diapositivas
+
+Los PDF ya compilados están en `docs/paper/paper.pdf` y `docs/presentacion/presentacion.pdf`.
+Para volver a generarlos después de editar el `.tex`, usen [Tectonic](https://tectonic-typesetting.github.io)
+(descarga solo los paquetes que necesita) o cualquier distribución TeX con XeLaTeX:
+
+```
+cd docs/paper && tectonic paper.tex
+cd docs/presentacion && tectonic presentacion.tex
+```
+
+Los números del documento salen de `python main.py` y `python -m pytest`.
 
 ## Antes de subir cambios
 
