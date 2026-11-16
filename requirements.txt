@@ -1,6 +1,6 @@
 networkx
 matplotlib
 pytest
-streamlit
+streamlit>=1.50
 google-genai
 tzdata

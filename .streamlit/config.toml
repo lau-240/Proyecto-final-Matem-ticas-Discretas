@@ -2,3 +2,26 @@
 [client]
 # Oculta el botón "Deploy" y las opciones de desarrollador de la barra superior
 toolbarMode = "viewer"
+
+# Tema: se respeta el modo claro/oscuro del sistema y cada uno tiene su paleta.
+[theme]
+baseRadius = "medium"
+buttonRadius = "full"
+showWidgetBorder = true
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+
+[theme.light]
+primaryColor = "#0F766E"
+backgroundColor = "#F7F9FB"
+secondaryBackgroundColor = "#EAF1F4"
+textColor = "#14213D"
+borderColor = "#D5DEE5"
+linkColor = "#2563EB"
+
+[theme.dark]
+primaryColor = "#2DD4BF"
+backgroundColor = "#0E1621"
+secondaryBackgroundColor = "#172333"
+textColor = "#E6EDF3"
+borderColor = "#2A3A4E"
+linkColor = "#60A5FA"

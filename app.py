@@ -8,7 +8,7 @@ import os
 
 import streamlit as st
 
-from src import almacen, tiempo
+from src import almacen, estilos, tiempo
 from src.campus import TIPOS
 from src.codigos import BLOQUE_LABORATORIOS, LABORATORIOS, asegurar_espacio
 from src.consultas import (cobertura, estado_en_ventana, ids_de_bloque,
@@ -50,7 +50,8 @@ CERCANO = "Encontrar el espacio libre más cercano a mí"
 ACCION_CORREGIR = "Corregir esta clase"
 ACCION_BORRAR = "Borrar esta clase"
 
-st.set_page_config(page_title="Espacios del campus", page_icon="🏫")
+st.set_page_config(page_title="Espacios del campus", page_icon="🏫", layout="wide")
+st.markdown(estilos.CSS, unsafe_allow_html=True)
 campus, horarios, semestre = almacen.cargar_o_crear(BASE)
 hoy = tiempo.ahora().date()
 esta_vencido = almacen.vencido(semestre, hoy)
@@ -109,18 +110,32 @@ def selector_salon(pref):
     return espacio.id
 
 
-def tabla_dia(espacio_id, dia):
-    """Estado hora por hora de un espacio en un día."""
-    filas = []
+def tabla_dia(espacio_id, dia, marcadas=(), expandida=False):
+    """Estado hora por hora de un espacio en un día: tira de colores y tabla de detalle."""
+    filas, horas = [], []
     for h in range(H_INI, H_FIN):
         f = franja(dia, h)
         r = campus.que_hay(espacio_id, f)
         detalle = f"{ETIQ_MOTIVO[r.motivo]}: {r.detalle}" if r else ""
         if r and r.vence:
             detalle += f" (solo hasta el {texto_vence(r.vence)})"
-        filas.append({"Hora": f"{h}:00", "Estado": ESTADOS[campus.estado(espacio_id, f)],
+        estado = campus.estado(espacio_id, f)
+        horas.append((h, estado, detalle))
+        filas.append({"Hora": f"{h}:00-{h + 1}:00", "Estado": ESTADOS[estado],
                       "Detalle": detalle})
-    st.table(filas)
+    st.markdown(estilos.franja_dia(horas, marcadas), unsafe_allow_html=True)
+    with st.expander("Ver el detalle hora por hora", expanded=expandida):
+        tabla(filas)
+
+
+def tabla(filas, **columnas):
+    """Tabla de solo lectura, a todo el ancho y sin la columna de índice."""
+    st.dataframe(filas, hide_index=True, width="stretch",
+                 column_config=columnas or None)
+
+
+def paso(numero, texto):
+    st.markdown(estilos.paso(numero, texto), unsafe_allow_html=True)
 
 
 def dia_y_hora_actuales():
@@ -171,8 +186,8 @@ def revisar_salon(dia, hora, duracion):
     else:
         st.warning(f"⚪ Sin información de {espacio_id} el {ventana}. "
                    "Sin información no significa libre.")
-    st.write(f"Estado de {espacio_id} hora por hora ({NOMBRES_DIAS[dia]}):")
-    tabla_dia(espacio_id, dia)
+    st.markdown(f"**{espacio_id} · {NOMBRES_DIAS[dia]}, hora por hora**")
+    tabla_dia(espacio_id, dia, marcadas=range(hora, hora + duracion))
 
 
 def buscar_cercano(dia, hora, duracion):
@@ -202,7 +217,7 @@ def buscar_cercano(dia, hora, duracion):
         st.info("Aún no hay horarios cargados. Elige un bloque o carga el tuyo.")
     desconocidos = st.checkbox("Incluir espacios sin información (pueden estar ocupados)",
                                key="b_desc")
-    if st.button("Buscar", key="b_buscar", disabled=origen is None):
+    if st.button("Buscar", key="b_buscar", type="primary", disabled=origen is None):
         if hora + duracion > H_FIN:
             st.error(f"La franja se pasa de las {H_FIN}:00.")
             return
@@ -214,16 +229,23 @@ def buscar_cercano(dia, hora, duracion):
                 return campus.info[e.id] & mascara == mascara
             mejor, minutos = ranking[0]
             texto = f"{mejor.id} (bloque {mejor.bloque}), a {minutos} min caminando."
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Más cercano", mejor.id, border=True)
+            c2.metric("Bloque", mejor.bloque, border=True)
+            c3.metric("Caminando", f"{minutos} min", border=True)
             if confirmado(mejor):
                 st.success(f"🟢 Más cercano libre: {texto}")
             else:
                 # Sin información no significa libre: no se pinta en verde.
                 st.warning(f"⚪ Más cercano sin ocupación registrada: {texto} "
                            "No hay datos de esa franja, así que podría estar ocupado.")
-            st.table([{"Espacio": e.id, "Bloque": e.bloque, "Tipo": ETIQ_TIPO[e.tipo],
-                       "Minutos": m,
-                       "Datos": "confirmado" if confirmado(e) else "sin información"}
-                      for e, m in ranking])
+            maximo = max(m for _, m in ranking) or 1
+            tabla([{"Espacio": e.id, "Bloque": e.bloque, "Tipo": ETIQ_TIPO[e.tipo],
+                    "Minutos": m,
+                    "Datos": "🟢 confirmado" if confirmado(e) else "⚪ sin información"}
+                   for e, m in ranking],
+                  Minutos=st.column_config.ProgressColumn(
+                      "Minutos caminando", format="%d min", min_value=0, max_value=maximo))
         else:
             st.warning("No hay espacios libres confirmados para esa franja. "
                        "Prueba incluyendo los que no tienen información.")
@@ -237,44 +259,66 @@ def vista_buscar():
     st.caption("Un salón sin información no se considera libre: solo se asegura lo que "
                "alguien ya registró o cargó en su horario.")
     d0, h0 = dia_y_hora_actuales()
-    c1, c2 = st.columns(2)
-    dia = c1.selectbox("Día", range(len(DIAS)), key="b_dia", index=d0,
-                       format_func=lambda i: NOMBRES_DIAS[i])
-    hora = c2.selectbox("Hora de inicio", range(H_INI, H_FIN), key="b_hora",
-                        index=h0 - H_INI, format_func=lambda h: f"{h}:00")
-    duracion = st.slider("Duración (horas)", 1, 4, 2, key="b_dur")
-    objetivo = st.radio("¿Qué quieres hacer?", [REVISAR, CERCANO], key="b_objetivo")
-    if objetivo == REVISAR:
-        revisar_salon(dia, hora, duracion)
-    else:
-        buscar_cercano(dia, hora, duracion)
+    with st.container(border=True):
+        paso(1, "¿Cuándo lo necesitas?")
+        c1, c2, c3 = st.columns([1, 1, 1.3])
+        dia = c1.selectbox("Día", range(len(DIAS)), key="b_dia", index=d0,
+                           format_func=lambda i: NOMBRES_DIAS[i])
+        hora = c2.selectbox("Hora de inicio", range(H_INI, H_FIN), key="b_hora",
+                            index=h0 - H_INI, format_func=lambda h: f"{h}:00")
+        duracion = c3.slider("Duración (horas)", 1, 4, 2, key="b_dur")
+    with st.container(border=True):
+        paso(2, "¿Qué quieres hacer?")
+        objetivo = st.radio("¿Qué quieres hacer?", [REVISAR, CERCANO], key="b_objetivo",
+                            horizontal=True, label_visibility="collapsed")
+        if objetivo == REVISAR:
+            revisar_salon(dia, hora, duracion)
+        else:
+            buscar_cercano(dia, hora, duracion)
 
 
 # ---------------------------------------------------------------- qué hay
 def vista_que_hay():
     st.subheader("¿Qué hay en un espacio?")
-    esp = selector_salon("q")
-    dia = st.selectbox("Día", range(len(DIAS)), key="q_dia",
-                       format_func=lambda i: NOMBRES_DIAS[i])
+    st.caption("Mira el día completo de un salón: qué está ocupado, por qué y qué no "
+               "tiene información.")
+    with st.container(border=True):
+        esp = selector_salon("q")
+        dia = st.selectbox("Día", range(len(DIAS)), key="q_dia",
+                           format_func=lambda i: NOMBRES_DIAS[i])
     if esp is None:
         st.info("Elige un bloque y un salón.")
         return
-    tabla_dia(esp, dia)
+    st.markdown(f"**{esp} · {NOMBRES_DIAS[dia]}**")
+    tabla_dia(esp, dia, expandida=True)
 
 
 # ---------------------------------------------------------------- tutorías
 def vista_tutorias():
     st.subheader("Espacios ocupados por tutorías")
+    st.caption("Tutorías que los estudiantes registraron. Se repiten cada semana.")
     tutorias = ver_tutorias(campus)
     if not tutorias:
         st.info("No hay tutorías registradas.")
         return
-    st.table([{"Espacio": t.espacio_id, "Bloque": campus.espacios[t.espacio_id].bloque,
-               "Cuándo": rangos_texto(t.mascara), "Materia": t.detalle,
-               "Confirmaciones": t.confirmaciones} for t in tutorias])
+    c1, c2 = st.columns(2)
+    c1.metric("Tutorías registradas", len(tutorias), border=True)
+    c2.metric("Espacios distintos", len({t.espacio_id for t in tutorias}), border=True)
+    tabla([{"Espacio": t.espacio_id, "Bloque": campus.espacios[t.espacio_id].bloque,
+            "Cuándo": rangos_texto(t.mascara), "Materia": t.detalle,
+            "Confirmaciones": t.confirmaciones} for t in tutorias],
+          Confirmaciones=st.column_config.NumberColumn(
+              "Confirmaciones", help="Cuántos estudiantes reportaron la misma tutoría",
+              format="%d 👍"))
 
 
 # ---------------------------------------------------------------- registrar
+def tabla_clases(filas):
+    """Clases guardadas [(a, b, espacio, materia)] como tabla."""
+    tabla([{"Cuándo": rangos_texto(((1 << (b - a)) - 1) << a), "Espacio": e,
+            "Materia": m} for a, b, e, m in filas])
+
+
 def panel_confirmar(texto, alias, clave):
     """Valida un horario en formato CSV, lo muestra y deja guardarlo."""
     clases, errores = leer_horario(texto, campus)
@@ -283,11 +327,13 @@ def panel_confirmar(texto, alias, clave):
     if not clases:
         return
     st.write("Esto es lo que se va a guardar. Revísalo con tu horario al lado:")
-    st.table([{"Día": NOMBRES_DIAS[d], "Hora": f"{a}:00-{b}:00", "Salón": c,
-               "Materia": m} for d, a, b, c, m in clases])
+    st.markdown(estilos.horario_semanal(clases, NOMBRES_DIAS, H_INI, H_FIN),
+                unsafe_allow_html=True)
+    tabla([{"Día": NOMBRES_DIAS[d], "Hora": f"{a}:00-{b}:00", "Salón": c,
+            "Materia": m} for d, a, b, c, m in clases])
     if errores:
         st.warning("Las filas con error no se guardarán.")
-    if st.button("Guardar este horario", key=f"{clave}_guardar"):
+    if st.button("Guardar este horario", key=f"{clave}_guardar", type="primary"):
         if not alias:
             st.error("Escribe primero tu código.")
             return
@@ -301,33 +347,39 @@ def panel_confirmar(texto, alias, clave):
 def vista_registrar():
     st.subheader("Ocupar un espacio")
     st.caption("Declara en qué lo vas a usar: así aparecerá ocupado para los demás.")
-    espacio_id = selector_salon("o")
-    dia, h_ini, h_fin = selector_franjas("o", desde_ahora=True)
-    motivo = st.selectbox("Motivo", MOTIVOS_OCUPAR, key="o_motivo",
-                          format_func=lambda m: ETIQ_MOTIVO[m])
-    st.caption("Estudio, reunión y práctica ocupan el espacio solo la próxima vez y luego "
-               "se borran solos. La tutoría se repite cada semana.")
-    detalle = st.text_input("¿De qué? (materia, grupo, actividad)", key="o_detalle")
-    if st.button("Ocupar", key="o_boton"):
-        if espacio_id is None:
-            st.error("Elige el bloque y el salón (o escribe un código válido).")
-        elif not detalle.strip():
-            st.error("Escribe en qué lo vas a usar.")
-        else:
-            def operacion(c, h):
-                espacio = asegurar_espacio(c, espacio_id)
-                mascara = rango(dia, h_ini, h_fin)
-                if espacio is None or not c.ocupar(espacio.id, mascara, motivo, detalle.strip()):
-                    return False, ""
-                r = c.registro_de(espacio.id, mascara, motivo, detalle.strip())
-                return True, (r.vence if r else "")
-            ok, vence = cambiar(operacion)
-            if ok:
-                st.success("Listo: el espacio quedó ocupado en ese horario. "
-                           + (f"Dejará de valer el {texto_vence(vence)}." if vence
-                              else "Se repite cada semana."))
+    with st.container(border=True):
+        paso(1, "¿Dónde?")
+        espacio_id = selector_salon("o")
+        paso(2, "¿Cuándo?")
+        dia, h_ini, h_fin = selector_franjas("o", desde_ahora=True)
+        paso(3, "¿Para qué?")
+        c1, c2 = st.columns([1, 2])
+        motivo = c1.selectbox("Motivo", MOTIVOS_OCUPAR, key="o_motivo",
+                              format_func=lambda m: ETIQ_MOTIVO[m])
+        detalle = c2.text_input("¿De qué? (materia, grupo, actividad)", key="o_detalle")
+        st.caption("Estudio, reunión y práctica ocupan el espacio solo la próxima vez y "
+                   "luego se borran solos. La tutoría se repite cada semana.")
+        if st.button("Ocupar", key="o_boton", type="primary"):
+            if espacio_id is None:
+                st.error("Elige el bloque y el salón (o escribe un código válido).")
+            elif not detalle.strip():
+                st.error("Escribe en qué lo vas a usar.")
             else:
-                st.error("Conflicto: ese espacio ya está ocupado en parte de ese horario.")
+                def operacion(c, h):
+                    espacio = asegurar_espacio(c, espacio_id)
+                    mascara = rango(dia, h_ini, h_fin)
+                    if espacio is None or not c.ocupar(espacio.id, mascara, motivo,
+                                                       detalle.strip()):
+                        return False, ""
+                    r = c.registro_de(espacio.id, mascara, motivo, detalle.strip())
+                    return True, (r.vence if r else "")
+                ok, vence = cambiar(operacion)
+                if ok:
+                    st.success("Listo: el espacio quedó ocupado en ese horario. "
+                               + (f"Dejará de valer el {texto_vence(vence)}." if vence
+                                  else "Se repite cada semana."))
+                else:
+                    st.error("Conflicto: ese espacio ya está ocupado en parte de ese horario.")
 
     st.divider()
     st.subheader("Cargar mi horario")
@@ -336,46 +388,55 @@ def vista_registrar():
                "borrar tu horario.")
     alias = st.text_input("Mi código estudiantil", key="h_alias").strip()
 
-    st.markdown("**Opción 1: subir una foto o captura de tu horario** (la lee una IA)")
-    st.caption("La imagen se envía a un servicio de IA externo (Google Gemini) solo para "
-               "leerla y no se guarda. Recórtala para que no salgan tu nombre ni tu código.")
-    imagen = st.file_uploader("Foto del horario", type=["png", "jpg", "jpeg", "webp"],
-                              key="h_img")
-    if imagen is not None:
-        st.image(imagen, caption="Tu horario", width=420)
-        if st.button("Leer horario de la imagen", key="h_leer"):
-            try:
-                with st.spinner("Leyendo la imagen..."):
-                    st.session_state["h_img_texto"] = imagen_a_csv(
-                        imagen.getvalue(), imagen.type)
-            except Exception as error:
-                st.error(f"No se pudo leer la imagen: {error}")
-    if "h_img_texto" in st.session_state and imagen is not None:
-        texto = st.text_area("Lo que leyó la IA (puedes corregirlo antes de guardar)",
-                             key="h_img_texto", height=220)
-        panel_confirmar(texto, alias, "img")
+    foto, a_mano = st.tabs(["📷 Opción 1 · Desde una foto", "✍️ Opción 2 · Clase por clase"])
+    with foto:
+        st.markdown("**Sube una foto o captura de tu horario** (la lee una IA)")
+        st.caption("La imagen se envía a un servicio de IA externo (Google Gemini) solo "
+                   "para leerla y no se guarda. Recórtala para que no salgan tu nombre ni "
+                   "tu código.")
+        imagen = st.file_uploader("Foto del horario", type=["png", "jpg", "jpeg", "webp"],
+                                  key="h_img")
+        if imagen is not None:
+            c1, c2 = st.columns([1, 1])
+            c1.image(imagen, caption="Tu horario", width="stretch")
+            with c2:
+                st.write("Si la imagen se ve bien, pide a la IA que la lea. Después podrás "
+                         "revisar y corregir lo que leyó antes de guardar.")
+                if st.button("Leer horario de la imagen", key="h_leer", type="primary"):
+                    try:
+                        with st.spinner("Leyendo la imagen..."):
+                            st.session_state["h_img_texto"] = imagen_a_csv(
+                                imagen.getvalue(), imagen.type)
+                    except Exception as error:
+                        st.error(f"No se pudo leer la imagen: {error}")
+        if "h_img_texto" in st.session_state and imagen is not None:
+            texto = st.text_area("Lo que leyó la IA (puedes corregirlo antes de guardar)",
+                                 key="h_img_texto", height=220)
+            panel_confirmar(texto, alias, "img")
 
-    st.markdown("**Opción 2: agregar una clase a mano**")
-    espacio_h = selector_salon("h")
-    dia_h, ini_h, fin_h = selector_franjas("h")
-    materia = st.text_input("Materia", key="h_materia")
-    if st.button("Agregar clase", key="h_boton"):
-        if not alias or not materia.strip():
-            st.error("Escribe tu código y la materia.")
-        elif espacio_h is None:
-            st.error("Elige el bloque y el salón (o escribe un código válido).")
-        else:
-            agregadas, conflictos = cambiar(lambda c, h: aplicar_horario(
-                c, h, alias, [(dia_h, ini_h, fin_h, espacio_h, materia.strip())]))
-            if agregadas:
-                st.success("Clase agregada.")
+    with a_mano:
+        st.markdown("**Agrega una clase a mano**")
+        espacio_h = selector_salon("h")
+        dia_h, ini_h, fin_h = selector_franjas("h")
+        materia = st.text_input("Materia", key="h_materia")
+        if st.button("Agregar clase", key="h_boton", type="primary"):
+            if not alias or not materia.strip():
+                st.error("Escribe tu código y la materia.")
+            elif espacio_h is None:
+                st.error("Elige el bloque y el salón (o escribe un código válido).")
             else:
-                st.error("No se pudo agregar: " + (conflictos[0] if conflictos
-                                                    else "ya estaba cargada."))
+                agregadas, conflictos = cambiar(lambda c, h: aplicar_horario(
+                    c, h, alias, [(dia_h, ini_h, fin_h, espacio_h, materia.strip())]))
+                if agregadas:
+                    st.success("Clase agregada.")
+                else:
+                    st.error("No se pudo agregar: " + (conflictos[0] if conflictos
+                                                        else "ya estaba cargada."))
     if alias in horarios:
-        st.write("Tus clases cargadas:")
-        st.table([{"Cuándo": rangos_texto(((1 << (b - a)) - 1) << a),
-                   "Espacio": e, "Materia": m} for a, b, e, m in horarios[alias]])
+        st.markdown("**Tus clases cargadas**")
+        st.markdown(estilos.horario_semanal(clases_semana(horarios[alias]), NOMBRES_DIAS,
+                                            H_INI, H_FIN), unsafe_allow_html=True)
+        tabla_clases(horarios[alias])
         st.caption("Para corregir o borrar una clase usa la pestaña **Mi horario**: "
                    "no hace falta volver a subir todo el horario.")
 
@@ -384,6 +445,15 @@ def vista_registrar():
 def texto_clase(clase):
     a, b, e, m = clase
     return f"{rangos_texto(((1 << (b - a)) - 1) << a)} · {e} · {m}"
+
+
+def clases_semana(clases):
+    """[(a, b, espacio, materia)] guardadas como franjas -> [(dia, h_ini, h_fin, espacio, materia)]."""
+    salida = []
+    for a, b, e, m in clases:
+        dia, h = divmod(a, N_HORAS)
+        salida.append((dia, h + H_INI, b - dia * N_HORAS + H_INI, e, m))
+    return salida
 
 
 def vista_mi_horario():
@@ -400,53 +470,68 @@ def vista_mi_horario():
                    "Cárgalo primero en la pestaña Registrar.")
         return
     clases = horarios[alias]
-    st.table([{"Cuándo": rangos_texto(((1 << (b - a)) - 1) << a),
-               "Espacio": e, "Materia": m} for a, b, e, m in clases])
-    elegida = st.selectbox("Clase", range(len(clases)), key="m_sel",
-                           format_func=lambda i: texto_clase(clases[i]))
-    accion = st.radio("¿Qué quieres hacer con esta clase?",
-                      [ACCION_CORREGIR, ACCION_BORRAR], key="m_accion", horizontal=True)
+    semana = clases_semana(clases)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Clases", len(clases), border=True)
+    c2.metric("Horas a la semana", sum(f - i for _, i, f, _, _ in semana), border=True)
+    c3.metric("Días con clase", len({d for d, *_ in semana}), border=True)
+    vista_grilla, vista_lista = st.tabs(["🗓️ Semana", "📋 Lista"])
+    with vista_grilla:
+        st.markdown(estilos.horario_semanal(semana, NOMBRES_DIAS, H_INI, H_FIN),
+                    unsafe_allow_html=True)
+    with vista_lista:
+        tabla_clases(clases)
 
-    if accion == ACCION_CORREGIR:
-        a, b, e, m = clases[elegida]
-        firma = (alias, elegida, a, b, e, m)
-        if st.session_state.get("m_firma") != firma:      # mostrar los datos actuales
-            dia_c, h = divmod(a, N_HORAS)
-            st.session_state.update({
-                "m_bloque": campus.espacios[e].bloque, "m_salon": e, "m_dia": dia_c,
-                "m_ini": h + H_INI, "m_fin": b - dia_c * N_HORAS + H_INI,
-                "m_materia": m, "m_firma": firma})
-        espacio_id = selector_salon("m")
-        dia, h_ini, h_fin = selector_franjas("m")
-        materia = st.text_input("Materia", key="m_materia")
-        if st.button("Guardar cambios", key="m_guardar"):
-            if espacio_id is None:
-                st.error("Elige el bloque y el salón (o escribe un código válido).")
-            else:
-                ok, motivo = cambiar(lambda c, h: actualizar_clase(
-                    c, h, alias, elegida, dia, h_ini, h_fin, espacio_id, materia))
-                if ok:
-                    st.session_state.pop("m_firma", None)
-                    st.session_state["m_aviso"] = "Clase actualizada."
-                    st.rerun()
+    with st.container(border=True):
+        paso("✎", "Corregir o borrar una clase")
+        elegida = st.selectbox("Clase", range(len(clases)), key="m_sel",
+                               format_func=lambda i: texto_clase(clases[i]))
+        accion = st.radio("¿Qué quieres hacer con esta clase?",
+                          [ACCION_CORREGIR, ACCION_BORRAR], key="m_accion", horizontal=True)
+
+        if accion == ACCION_CORREGIR:
+            a, b, e, m = clases[elegida]
+            firma = (alias, elegida, a, b, e, m)
+            if st.session_state.get("m_firma") != firma:      # mostrar los datos actuales
+                dia_c, h = divmod(a, N_HORAS)
+                st.session_state.update({
+                    "m_bloque": campus.espacios[e].bloque, "m_salon": e, "m_dia": dia_c,
+                    "m_ini": h + H_INI, "m_fin": b - dia_c * N_HORAS + H_INI,
+                    "m_materia": m, "m_firma": firma})
+            espacio_id = selector_salon("m")
+            dia, h_ini, h_fin = selector_franjas("m")
+            materia = st.text_input("Materia", key="m_materia")
+            if st.button("Guardar cambios", key="m_guardar", type="primary"):
+                if espacio_id is None:
+                    st.error("Elige el bloque y el salón (o escribe un código válido).")
                 else:
-                    st.error(f"No se pudo actualizar (tu clase sigue igual): {motivo}")
-    else:
-        if st.button("Borrar esta clase", key="m_borrar_uno"):
-            cambiar(lambda c, h: borrar_clase(c, h, alias, elegida))
-            st.session_state.pop("m_sel", None)
-            st.session_state.pop("m_firma", None)
-            st.session_state["m_aviso"] = "Clase borrada."
-            st.rerun()
+                    ok, motivo = cambiar(lambda c, h: actualizar_clase(
+                        c, h, alias, elegida, dia, h_ini, h_fin, espacio_id, materia))
+                    if ok:
+                        st.session_state.pop("m_firma", None)
+                        st.session_state["m_aviso"] = "Clase actualizada."
+                        st.rerun()
+                    else:
+                        st.error(f"No se pudo actualizar (tu clase sigue igual): {motivo}")
+        else:
+            st.caption("La clase se quita de tu horario y su salón vuelve a quedar sin "
+                       "información en esas horas.")
+            if st.button("Borrar esta clase", key="m_borrar_uno", icon="🗑️"):
+                cambiar(lambda c, h: borrar_clase(c, h, alias, elegida))
+                st.session_state.pop("m_sel", None)
+                st.session_state.pop("m_firma", None)
+                st.session_state["m_aviso"] = "Clase borrada."
+                st.rerun()
 
-    st.divider()
-    seguro = st.checkbox("Sí, quiero borrar TODO mi horario", key="m_borrar_conf")
-    if st.button("Borrar todo mi horario", key="m_borrar_todo", disabled=not seguro):
-        n = cambiar(lambda c, h: borrar_horario(c, h, alias))
-        for clave in ("m_sel", "m_firma", "m_borrar_conf"):
-            st.session_state.pop(clave, None)
-        st.session_state["m_aviso"] = f"Se borraron {n} clases de tu horario."
-        st.rerun()
+    with st.expander("Zona de peligro: borrar todo mi horario"):
+        seguro = st.checkbox("Sí, quiero borrar TODO mi horario", key="m_borrar_conf")
+        if st.button("Borrar todo mi horario", key="m_borrar_todo", disabled=not seguro,
+                     icon="⚠️"):
+            n = cambiar(lambda c, h: borrar_horario(c, h, alias))
+            for clave in ("m_sel", "m_firma", "m_borrar_conf"):
+                st.session_state.pop(clave, None)
+            st.session_state["m_aviso"] = f"Se borraron {n} clases de tu horario."
+            st.rerun()
 
 
 # ---------------------------------------------------------------- semestre
@@ -455,9 +540,9 @@ def vista_semestre():
     st.write(f"**Semestre vigente:** {semestre['nombre']} · "
              f"**datos válidos hasta:** {semestre['fin']}")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Registros de uso", len(campus.registros))
-    c2.metric("Horarios cargados", len(horarios))
-    c3.metric("Cobertura de datos", f"{cobertura(campus, TODAS):.0%}")
+    c1.metric("Registros de uso", len(campus.registros), border=True)
+    c2.metric("Horarios cargados", len(horarios), border=True)
+    c3.metric("Cobertura de datos", f"{cobertura(campus, TODAS):.0%}", border=True)
     st.caption("Los horarios vencen al terminar el semestre. Cerrar el semestre "
                "borra (o archiva) los datos y empieza uno nuevo vacío.")
     if not CLAVE_ADMIN:
@@ -465,33 +550,55 @@ def vista_semestre():
                    "puede cerrar. Defínanla en `CLAVE_ADMIN` (variable de entorno o "
                    "`.streamlit/secrets.toml`).")
         return
-    clave = st.text_input("Clave de administrador", type="password", key="s_clave")
-    if not clave:
-        return
-    if not hmac.compare_digest(clave.encode(), CLAVE_ADMIN.encode()):
-        st.error("Clave incorrecta.")
-        return
-    nuevo = st.text_input("Nombre del semestre nuevo (ej. 2027-1)", key="s_nuevo")
-    fin = st.date_input("Fecha de fin del semestre nuevo", key="s_fin",
-                        value=hoy + dt.timedelta(days=120))
-    borrar = st.checkbox("Borrar definitivamente los datos del semestre anterior "
-                         "(recomendado por privacidad)", value=True, key="s_borrar")
-    conf = st.text_input(f"Para confirmar escribe: {semestre['nombre']}", key="s_conf")
-    if st.button("Cerrar semestre y empezar uno nuevo", key="s_cerrar"):
-        if conf != semestre["nombre"]:
-            st.error("La confirmación no coincide.")
-        elif not nuevo.strip() or nuevo.strip() == semestre["nombre"]:
-            st.error("Escribe un nombre nuevo distinto al actual.")
-        else:
-            with almacen.BLOQUEO:
-                almacen.cerrar_semestre(BASE, semestre, nuevo.strip(), fin, borrar)
-            st.success("Semestre cerrado. Empezó uno nuevo vacío.")
-            st.rerun()
+    with st.container(border=True):
+        paso("🔒", "Solo administrador")
+        clave = st.text_input("Clave de administrador", type="password", key="s_clave")
+        if not clave:
+            return
+        if not hmac.compare_digest(clave.encode(), CLAVE_ADMIN.encode()):
+            st.error("Clave incorrecta.")
+            return
+        c1, c2 = st.columns(2)
+        nuevo = c1.text_input("Nombre del semestre nuevo (ej. 2027-1)", key="s_nuevo")
+        fin = c2.date_input("Fecha de fin del semestre nuevo", key="s_fin",
+                            value=hoy + dt.timedelta(days=120))
+        borrar = st.checkbox("Borrar definitivamente los datos del semestre anterior "
+                             "(recomendado por privacidad)", value=True, key="s_borrar")
+        conf = st.text_input(f"Para confirmar escribe: {semestre['nombre']}", key="s_conf")
+        if st.button("Cerrar semestre y empezar uno nuevo", key="s_cerrar", type="primary"):
+            if conf != semestre["nombre"]:
+                st.error("La confirmación no coincide.")
+            elif not nuevo.strip() or nuevo.strip() == semestre["nombre"]:
+                st.error("Escribe un nombre nuevo distinto al actual.")
+            else:
+                with almacen.BLOQUEO:
+                    almacen.cerrar_semestre(BASE, semestre, nuevo.strip(), fin, borrar)
+                st.success("Semestre cerrado. Empezó uno nuevo vacío.")
+                st.rerun()
+
+
+# ---------------------------------------------------------------- barra lateral
+def barra_lateral():
+    with st.sidebar:
+        st.markdown("### 🧭 Cómo usarla")
+        st.markdown(
+            "1. **Buscar libre**: elige día y hora y revisa un salón o busca el libre "
+            "más cercano.\n"
+            "2. **Registrar**: ocupa un espacio o carga tu horario (foto o a mano).\n"
+            "3. **Mi horario**: corrige o borra tus clases.")
+        st.markdown("### 🎨 Estados")
+        st.markdown(estilos.leyenda(), unsafe_allow_html=True)
+        st.caption("Sin información **no** significa libre: solo se asegura lo que "
+                   "alguien registró.")
+        st.divider()
+        st.caption(f"Hora de Colombia: {tiempo.ahora():%d/%m/%Y %H:%M}")
 
 
 # ---------------------------------------------------------------- principal
-st.title("🏫 Espacios del campus")
-st.caption(f"Semestre {semestre['nombre']} · datos válidos hasta {semestre['fin']}")
+st.markdown(estilos.encabezado(semestre["nombre"], semestre["fin"], len(campus.registros),
+                               len(horarios), cobertura(campus, TODAS)),
+            unsafe_allow_html=True)
+barra_lateral()
 
 if esta_vencido:
     st.error(f"El semestre {semestre['nombre']} terminó el {semestre['fin']}. "
@@ -499,8 +606,8 @@ if esta_vencido:
     vista_semestre()
     st.stop()
 
-pestanas = st.tabs(["Buscar libre", "¿Qué hay?", "Tutorías", "Registrar", "Mi horario",
-                    "Semestre"])
+pestanas = st.tabs(["🔎 Buscar libre", "🏷️ ¿Qué hay?", "🎓 Tutorías", "✍️ Registrar",
+                    "🗓️ Mi horario", "⚙️ Semestre"])
 for pestana, vista in zip(pestanas, [vista_buscar, vista_que_hay, vista_tutorias,
                                      vista_registrar, vista_mi_horario, vista_semestre]):
     with pestana:
