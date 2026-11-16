@@ -72,7 +72,7 @@ python -m pytest               # pruebas
 | Archivo | Qué hace |
 |---|---|
 | `app.py` | Interfaz Streamlit: buscar libre, qué hay, tutorías, registrar, mi horario, semestre |
-| `src/estilos.py` | Estilos de la interfaz: encabezado, tira de horas y horario semanal |
+| `src/estilos.py` | Piezas visuales de la interfaz: cabecera, tira de horas de un día y horario semanal |
 | `iniciar.bat` | Atajo de Windows: activa el entorno y abre la app |
 | `probar_ia.py` | Prueba la clave de Gemini, cada modelo del lector y lista los disponibles |
 | `main.py` | Caso conocido, conflictos, tutorías, simulación y análisis de red |
@@ -89,7 +89,7 @@ python -m pytest               # pruebas
 | `tests/` | Pruebas, incluido el caso con resultado conocido |
 | `docs/paper/` | Documento escrito final (`paper.tex` y `paper.pdf`) |
 | `docs/presentacion/` | Diapositivas en Beamer (`presentacion.tex` y `presentacion.pdf`) |
-| `.streamlit/config.toml` | Ajustes de la interfaz: tema claro/oscuro y oculta la barra de desarrollador |
+| `.streamlit/config.toml` | Ajustes de la interfaz: tema claro/oscuro, fuentes y oculta la barra de desarrollador |
 | `pytest.ini` | Configuración de las pruebas (solo busca en `tests/`) |
 | `.github/workflows/pruebas.yml` | CI: corre las pruebas en GitHub en cada push y pull request |
 

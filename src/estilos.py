@@ -1,119 +1,118 @@
-"""Estilos y piezas visuales (HTML) de la interfaz.
+"""Piezas visuales (HTML/CSS) de la interfaz: cabecera, pasos, tira de horas y horario semanal.
 
-Solo presentación: no toca el modelo. Los colores usan transparencias para que se vean
-bien con el tema claro y con el oscuro (ver `.streamlit/config.toml`).
+Solo presentación: no toca el modelo. Los colores de la tira y del horario usan
+transparencias para verse bien con el tema claro y con el oscuro (ver
+`.streamlit/config.toml`).
 """
 from html import escape
 
 CSS = """
 <style>
-/* Ancho cómodo de lectura aunque la página use layout="wide" */
-.block-container {max-width: 1120px; padding-top: 2.2rem;}
+.block-container {max-width: 1080px; padding-top: 1.6rem;}
 
-/* ---------- encabezado ---------- */
-.ec-hero {
-  border-radius: 18px; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem;
-  background: linear-gradient(135deg, rgba(13,148,136,.18), rgba(37,99,235,.12));
-  border: 1px solid rgba(13,148,136,.30);
+/* ---------- cabecera ---------- */
+.ec-cabecera {
+  background: #1B2B44; color: #F6F1E7; border-radius: 14px;
+  padding: 1.6rem 1.8rem 1.4rem; margin-bottom: 1rem; position: relative; overflow: hidden;
 }
-.ec-hero h1 {font-size: 1.9rem; margin: 0; padding: 0; line-height: 1.2;}
-.ec-hero p {margin: .35rem 0 0; opacity: .8;}
-.ec-badges {display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem;}
-.ec-badge {
-  font-size: .82rem; padding: .2rem .65rem; border-radius: 999px;
-  background: rgba(127,127,127,.14); border: 1px solid rgba(127,127,127,.25);
+.ec-cabecera::after {            /* tira de horas decorativa, abajo */
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+  background: repeating-linear-gradient(90deg,
+    #2E9E6A 0 9%, transparent 9% 10%, #E4572E 10% 16%, transparent 16% 17%,
+    rgba(246,241,231,.25) 17% 30%, transparent 30% 31%);
 }
-.ec-badge b {font-weight: 600;}
+.ec-sello {font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+           color: #F2A07B; font-weight: 600;}
+.ec-titulo {font-family: "Fraunces", Georgia, serif; font-size: 2.3rem; font-weight: 600;
+            line-height: 1.1; margin: .35rem 0 .45rem;}
+.ec-cabecera p {margin: 0; max-width: 46rem; opacity: .85; font-size: 1rem;}
+.ec-ahora {margin-top: 1rem; font-size: .92rem; display: flex; flex-wrap: wrap; gap: .3rem 1.4rem;}
+.ec-ahora b {font-family: "Fraunces", Georgia, serif; font-size: 1.35rem; margin-right: .25rem;}
+.ec-ahora .ec-p {display: inline-block; width: .6rem; height: .6rem; border-radius: 2px;
+                 margin-right: .4rem; vertical-align: 2px;}
 
 /* ---------- pestañas ---------- */
-.stTabs [data-baseweb="tab-list"] {gap: .25rem; flex-wrap: wrap;}
-.stTabs [data-baseweb="tab"] {
-  padding: .45rem .9rem; border-radius: 10px 10px 0 0; font-weight: 600;
-}
+.stTabs [data-baseweb="tab-list"] {gap: 1.2rem;}
+.stTabs [data-baseweb="tab"] p {font-size: 1rem; font-weight: 500;}
 
-/* ---------- títulos de sección ---------- */
-.ec-paso {display: flex; align-items: center; gap: .6rem; margin: .2rem 0 .6rem;}
-.ec-paso span {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .85rem; font-weight: 700;
-  background: rgba(13,148,136,.20); border: 1px solid rgba(13,148,136,.45);
-}
-.ec-paso b {font-size: 1.05rem;}
+/* ---------- pasos ---------- */
+.ec-paso {display: flex; align-items: baseline; gap: .55rem; margin: .1rem 0 .5rem;}
+.ec-paso span {font-family: "Fraunces", Georgia, serif; font-size: 1.05rem; font-weight: 600;
+               color: #E4572E;}
+.ec-paso b {font-size: 1.02rem; font-weight: 600;}
 
-/* ---------- leyenda y franja del día ---------- */
-.ec-leyenda {display: flex; gap: 1rem; flex-wrap: wrap; font-size: .85rem; opacity: .9;}
-.ec-leyenda i {
-  display: inline-block; width: .8rem; height: .8rem; border-radius: 3px;
-  margin-right: .35rem; vertical-align: -1px; border: 1px solid rgba(127,127,127,.45);
-}
-.ec-dia {display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin: .5rem 0 .3rem;}
+/* ---------- tira de horas de un día ---------- */
+.ec-dia {display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin: .5rem 0 .2rem;}
 .ec-hora {text-align: center;}
-.ec-celda {height: 34px; border-radius: 6px; border: 1px solid rgba(127,127,127,.25);}
-.ec-hora small {display: block; margin-top: 3px; font-size: .75rem; opacity: .75;}
-.ec-libre {background: rgba(34,197,94,.55); border-color: rgba(34,197,94,.9);}
-.ec-ocupado {background: rgba(239,68,68,.55); border-color: rgba(239,68,68,.9);}
-.ec-desconocido {
-  background: repeating-linear-gradient(45deg, rgba(127,127,127,.12) 0 5px,
-                                        rgba(127,127,127,.22) 5px 10px);
-}
-.ec-marcada {outline: 2px solid rgba(37,99,235,.95); outline-offset: 1px;}
+.ec-celda {height: 30px; border-radius: 4px;}
+.ec-hora small {display: block; margin-top: 3px; font-size: .75rem; opacity: .65;}
+.ec-libre {background: #2E9E6A;}
+.ec-ocupado {background: #E4572E;}
+.ec-desconocido {background: rgba(127,127,127,.16);}
+.ec-marcada {box-shadow: 0 0 0 2px currentColor;}
+.ec-leyenda {display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .82rem; opacity: .8;
+             margin: .3rem 0 .7rem;}
+.ec-leyenda i {display: inline-block; width: .75rem; height: .75rem; border-radius: 2px;
+               margin-right: .35rem; vertical-align: -1px;}
 
 /* ---------- horario semanal ---------- */
-.ec-semana {
-  display: grid; grid-template-columns: 3.2rem repeat(6, 1fr); gap: 3px;
-  font-size: .78rem; margin: .4rem 0 1rem;
-}
-.ec-semana .ec-cab {text-align: center; font-weight: 700; padding: .3rem 0;}
-.ec-semana .ec-h {text-align: right; padding-right: .4rem; opacity: .65; line-height: 28px;}
-.ec-semana .ec-v {min-height: 28px; border-radius: 4px; background: rgba(127,127,127,.07);}
-.ec-clase {
-  border-radius: 6px; padding: .25rem .4rem; overflow: hidden; line-height: 1.25;
-  background: rgba(13,148,136,.28); border-left: 4px solid rgba(13,148,136,1);
-}
-.ec-clase b {display: block; font-size: .78rem;}
+.ec-semana {display: grid; grid-template-columns: 3rem repeat(6, 1fr); gap: 2px;
+            font-size: .8rem; margin: .5rem 0 1rem;}
+.ec-semana .ec-cab {text-align: center; font-weight: 600; padding: .3rem 0 .4rem;}
+.ec-semana .ec-h {text-align: right; padding-right: .45rem; opacity: .55; line-height: 28px;
+                  font-size: .75rem;}
+.ec-semana .ec-v {min-height: 28px; background: rgba(127,127,127,.06);}
+.ec-clase {padding: .3rem .45rem; overflow: hidden; line-height: 1.25; border-radius: 5px;}
+.ec-clase b {display: block; font-weight: 600;}
 .ec-clase small {opacity: .8;}
-
-div[data-testid="stMetric"] {padding: .2rem .4rem;}
 </style>
 """
 
-COLOR_CLASE = ["13,148,136", "37,99,235", "147,51,234", "234,88,12", "219,39,119",
-               "202,138,4", "22,163,74", "8,145,178"]
+# Colores por materia (r, g, b): tonos de la misma paleta de la app
+COLOR_CLASE = ["52,96,160", "228,87,46", "46,158,106", "196,140,40", "92,107,192",
+               "170,70,110"]
 
 
-def encabezado(semestre, fin, n_registros, n_horarios, cobertura):
-    """Bloque superior con el título y el estado del semestre."""
+def cabecera(semestre, fin, ahora_txt, ocupados, libres, sin_info):
+    """Cabecera con el estado del campus en este momento."""
+    if ahora_txt is None:
+        ahora = ('<div class="ec-ahora"><span>Ahora el campus está fuera del horario '
+                 'registrado (lunes a sábado, 6:00-22:00).</span></div>')
+    else:
+        ahora = (
+            f'<div class="ec-ahora"><span style="opacity:.75">{escape(ahora_txt)}</span>'
+            f'<span><i class="ec-p" style="background:#E4572E"></i><b>{ocupados}</b>ocupados</span>'
+            f'<span><i class="ec-p" style="background:#2E9E6A"></i><b>{libres}</b>libres '
+            f'confirmados</span>'
+            f'<span><i class="ec-p" style="background:rgba(246,241,231,.35)"></i>'
+            f'<b>{sin_info}</b>sin información</span></div>')
     return f"""
-<div class="ec-hero">
-  <h1>🏫 Espacios del campus</h1>
-  <p>Encuentra salones libres, revisa qué hay en cada espacio y comparte tu horario
-     para que todos sepan qué está ocupado.</p>
-  <div class="ec-badges">
-    <span class="ec-badge">📅 Semestre <b>{escape(str(semestre))}</b></span>
-    <span class="ec-badge">⏳ Datos válidos hasta <b>{escape(str(fin))}</b></span>
-    <span class="ec-badge">📝 <b>{n_registros}</b> registros</span>
-    <span class="ec-badge">👥 <b>{n_horarios}</b> horarios</span>
-    <span class="ec-badge">📊 Cobertura <b>{cobertura:.0%}</b></span>
-  </div>
+<div class="ec-cabecera">
+  <div class="ec-sello">Espacios del campus · semestre {escape(str(semestre))}</div>
+  <div class="ec-titulo">¿Dónde hay un salón libre?</div>
+  <p>Revisa cada espacio hora por hora con lo que los estudiantes han registrado, o deja
+     registrado el tuyo para que los demás lo sepan. Datos válidos hasta
+     {escape(str(fin))}.</p>
+  {ahora}
 </div>"""
 
 
 def paso(numero, texto):
-    """Título numerado de una sección ('1 · ¿Cuándo?')."""
-    return f'<div class="ec-paso"><span>{numero}</span><b>{escape(texto)}</b></div>'
+    """Título de una sección con su número ('01  Cuándo')."""
+    return f'<div class="ec-paso"><span>{numero:02d}</span><b>{escape(texto)}</b></div>'
 
 
 def leyenda():
     return ('<div class="ec-leyenda">'
-            '<span><i class="ec-libre"></i>Libre (confirmado)</span>'
+            '<span><i class="ec-libre"></i>Libre</span>'
             '<span><i class="ec-ocupado"></i>Ocupado</span>'
             '<span><i class="ec-desconocido"></i>Sin información</span>'
-            '<span><i class="ec-marcada" style="background:transparent"></i>'
-            'Franja consultada</span></div>')
+            '<span><i style="box-shadow:0 0 0 2px currentColor"></i>Franja consultada</span>'
+            '</div>')
 
 
 def franja_dia(horas, marcadas=()):
-    """Tira de colores con el estado de cada hora de un día.
+    """Tira con el estado de cada hora de un día.
 
     `horas`: lista de (hora, estado, detalle) con estado en libre/ocupado/desconocido.
     `marcadas`: horas que se resaltan (la franja que el estudiante consultó).
@@ -141,7 +140,7 @@ def horario_semanal(clases, nombres_dias, h_ini, h_fin):
     colores = {}
     for c in clases:
         colores.setdefault(c[4], COLOR_CLASE[len(colores) % len(COLOR_CLASE)])
-    celdas = ['<div></div>'] + [f'<div class="ec-cab">{escape(d[:3])}</div>'
+    celdas = ['<div></div>'] + [f'<div class="ec-cab">{escape(d)}</div>'
                                 for d in nombres_dias]
     for i, h in enumerate(range(desde, hasta)):
         fila = i + 2
@@ -152,8 +151,8 @@ def horario_semanal(clases, nombres_dias, h_ini, h_fin):
         rgb = colores[materia]
         celdas.append(
             f'<div class="ec-clase" style="grid-row:{a - desde + 2}/{b - desde + 2};'
-            f'grid-column:{d + 2};background:rgba({rgb},.25);border-left-color:rgb({rgb})"'
+            f'grid-column:{d + 2};background:rgba({rgb},.22);'
+            f'box-shadow:inset 0 0 0 1px rgba({rgb},.35)"'
             f' title="{escape(f"{materia} · {espacio} · {a}:00-{b}:00")}">'
-            f'<b>{escape(materia)}</b><small>{escape(espacio)} · {a}-{b}</small></div>')
+            f'<b>{escape(materia)}</b><small>{escape(espacio)} · {a}:00-{b}:00</small></div>')
     return f'<div class="ec-semana">{"".join(celdas)}</div>'
-

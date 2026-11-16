@@ -4,24 +4,23 @@
 toolbarMode = "viewer"
 
 # Tema: se respeta el modo claro/oscuro del sistema y cada uno tiene su paleta.
+# Fuentes de Google Fonts; sin internet se usan Georgia y la fuente sans del sistema.
 [theme]
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
+headingFont = "Fraunces:https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap, Georgia, serif"
 baseRadius = "medium"
-buttonRadius = "full"
-showWidgetBorder = true
-headingFontWeights = [700, 650, 600, 600, 600, 600]
+buttonRadius = "medium"
 
 [theme.light]
-primaryColor = "#0F766E"
-backgroundColor = "#F7F9FB"
-secondaryBackgroundColor = "#EAF1F4"
-textColor = "#14213D"
-borderColor = "#D5DEE5"
-linkColor = "#2563EB"
+primaryColor = "#D2491F"
+backgroundColor = "#FBF8F3"
+secondaryBackgroundColor = "#F1ECE3"
+textColor = "#1B2B44"
+borderColor = "#E3DCCF"
 
 [theme.dark]
-primaryColor = "#2DD4BF"
-backgroundColor = "#0E1621"
-secondaryBackgroundColor = "#172333"
-textColor = "#E6EDF3"
-borderColor = "#2A3A4E"
-linkColor = "#60A5FA"
+primaryColor = "#F2875A"
+backgroundColor = "#141A24"
+secondaryBackgroundColor = "#1E2633"
+textColor = "#EEE8DC"
+borderColor = "#2C3646"

@@ -40,8 +40,7 @@ ETIQ_TIPO = {"salon": "Salón", "laboratorio": "Laboratorio", "cancha_tenis": "C
 ETIQ_MOTIVO = {"clase": "Clase", "tutoria": "Tutoría", "estudio": "Estudio",
                "reunion": "Reunión", "practica": "Práctica"}
 MOTIVOS_OCUPAR = ["estudio", "reunion", "practica", "tutoria"]   # lo más común primero
-ESTADOS = {"ocupado": "🔴 Ocupado", "libre": "🟢 Libre",
-           "desconocido": "⚪ Sin información"}
+ESTADOS = {"ocupado": "Ocupado", "libre": "Libre", "desconocido": "Sin información"}
 
 OTRO = "__otro__"                      # opción "escribir un código" del selector de salón
 OPCIONES_BLOQUE = BLOQUES + [BLOQUE_LABORATORIOS]
@@ -50,7 +49,7 @@ CERCANO = "Encontrar el espacio libre más cercano a mí"
 ACCION_CORREGIR = "Corregir esta clase"
 ACCION_BORRAR = "Borrar esta clase"
 
-st.set_page_config(page_title="Espacios del campus", page_icon="🏫", layout="wide")
+st.set_page_config(page_title="Espacios del campus", layout="wide")
 st.markdown(estilos.CSS, unsafe_allow_html=True)
 campus, horarios, semestre = almacen.cargar_o_crear(BASE)
 hoy = tiempo.ahora().date()
@@ -134,8 +133,12 @@ def tabla(filas, **columnas):
                  column_config=columnas or None)
 
 
-def paso(numero, texto):
-    st.markdown(estilos.paso(numero, texto), unsafe_allow_html=True)
+def paso(texto, numero=None):
+    """Título de sección; con número se muestra como paso ('01 Cuándo')."""
+    if numero is None:
+        st.markdown(f"**{texto}**")
+    else:
+        st.markdown(estilos.paso(numero, texto), unsafe_allow_html=True)
 
 
 def dia_y_hora_actuales():
@@ -174,17 +177,17 @@ def revisar_salon(dia, hora, duracion):
     estado, registros = estado_en_ventana(campus, espacio_id, mascara)
     ventana = f"{NOMBRES_DIAS[dia]} de {hora}:00 a {hora + duracion}:00"
     if estado == "libre":
-        st.success(f"🟢 {espacio_id} está libre el {ventana}.")
+        st.success(f"{espacio_id} está libre el {ventana}.")
     elif estado == "ocupado":
-        st.error(f"🔴 {espacio_id} está ocupado el {ventana}.")
+        st.error(f"{espacio_id} está ocupado el {ventana}.")
         for r in registros:
             st.write(f"- {rangos_texto(r.mascara & mascara)}: "
                      f"{ETIQ_MOTIVO[r.motivo]} · {r.detalle}")
     elif estado == "parcial":
-        st.warning(f"⚪ No hay ocupaciones registradas en {espacio_id} el {ventana}, pero "
+        st.warning(f"No hay ocupaciones registradas en {espacio_id} el {ventana}, pero "
                    "faltan datos de algunas horas: no se puede asegurar que esté libre.")
     else:
-        st.warning(f"⚪ Sin información de {espacio_id} el {ventana}. "
+        st.warning(f"Sin información de {espacio_id} el {ventana}. "
                    "Sin información no significa libre.")
     st.markdown(f"**{espacio_id} · {NOMBRES_DIAS[dia]}, hora por hora**")
     tabla_dia(espacio_id, dia, marcadas=range(hora, hora + duracion))
@@ -229,23 +232,16 @@ def buscar_cercano(dia, hora, duracion):
                 return campus.info[e.id] & mascara == mascara
             mejor, minutos = ranking[0]
             texto = f"{mejor.id} (bloque {mejor.bloque}), a {minutos} min caminando."
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Más cercano", mejor.id, border=True)
-            c2.metric("Bloque", mejor.bloque, border=True)
-            c3.metric("Caminando", f"{minutos} min", border=True)
             if confirmado(mejor):
-                st.success(f"🟢 Más cercano libre: {texto}")
+                st.success(f"Más cercano libre: {texto}")
             else:
                 # Sin información no significa libre: no se pinta en verde.
-                st.warning(f"⚪ Más cercano sin ocupación registrada: {texto} "
+                st.warning(f"Más cercano sin ocupación registrada: {texto} "
                            "No hay datos de esa franja, así que podría estar ocupado.")
-            maximo = max(m for _, m in ranking) or 1
             tabla([{"Espacio": e.id, "Bloque": e.bloque, "Tipo": ETIQ_TIPO[e.tipo],
                     "Minutos": m,
-                    "Datos": "🟢 confirmado" if confirmado(e) else "⚪ sin información"}
-                   for e, m in ranking],
-                  Minutos=st.column_config.ProgressColumn(
-                      "Minutos caminando", format="%d min", min_value=0, max_value=maximo))
+                    "Datos": "confirmado" if confirmado(e) else "sin información"}
+                   for e, m in ranking])
         else:
             st.warning("No hay espacios libres confirmados para esa franja. "
                        "Prueba incluyendo los que no tienen información.")
@@ -260,7 +256,7 @@ def vista_buscar():
                "alguien ya registró o cargó en su horario.")
     d0, h0 = dia_y_hora_actuales()
     with st.container(border=True):
-        paso(1, "¿Cuándo lo necesitas?")
+        paso("Cuándo", 1)
         c1, c2, c3 = st.columns([1, 1, 1.3])
         dia = c1.selectbox("Día", range(len(DIAS)), key="b_dia", index=d0,
                            format_func=lambda i: NOMBRES_DIAS[i])
@@ -268,7 +264,7 @@ def vista_buscar():
                             index=h0 - H_INI, format_func=lambda h: f"{h}:00")
         duracion = c3.slider("Duración (horas)", 1, 4, 2, key="b_dur")
     with st.container(border=True):
-        paso(2, "¿Qué quieres hacer?")
+        paso("Qué quieres hacer", 2)
         objetivo = st.radio("¿Qué quieres hacer?", [REVISAR, CERCANO], key="b_objetivo",
                             horizontal=True, label_visibility="collapsed")
         if objetivo == REVISAR:
@@ -301,15 +297,11 @@ def vista_tutorias():
     if not tutorias:
         st.info("No hay tutorías registradas.")
         return
-    c1, c2 = st.columns(2)
-    c1.metric("Tutorías registradas", len(tutorias), border=True)
-    c2.metric("Espacios distintos", len({t.espacio_id for t in tutorias}), border=True)
     tabla([{"Espacio": t.espacio_id, "Bloque": campus.espacios[t.espacio_id].bloque,
             "Cuándo": rangos_texto(t.mascara), "Materia": t.detalle,
             "Confirmaciones": t.confirmaciones} for t in tutorias],
           Confirmaciones=st.column_config.NumberColumn(
-              "Confirmaciones", help="Cuántos estudiantes reportaron la misma tutoría",
-              format="%d 👍"))
+              "Confirmaciones", help="Cuántos estudiantes reportaron la misma tutoría"))
 
 
 # ---------------------------------------------------------------- registrar
@@ -348,11 +340,11 @@ def vista_registrar():
     st.subheader("Ocupar un espacio")
     st.caption("Declara en qué lo vas a usar: así aparecerá ocupado para los demás.")
     with st.container(border=True):
-        paso(1, "¿Dónde?")
+        paso("Dónde", 1)
         espacio_id = selector_salon("o")
-        paso(2, "¿Cuándo?")
+        paso("Cuándo", 2)
         dia, h_ini, h_fin = selector_franjas("o", desde_ahora=True)
-        paso(3, "¿Para qué?")
+        paso("Para qué", 3)
         c1, c2 = st.columns([1, 2])
         motivo = c1.selectbox("Motivo", MOTIVOS_OCUPAR, key="o_motivo",
                               format_func=lambda m: ETIQ_MOTIVO[m])
@@ -388,7 +380,7 @@ def vista_registrar():
                "borrar tu horario.")
     alias = st.text_input("Mi código estudiantil", key="h_alias").strip()
 
-    foto, a_mano = st.tabs(["📷 Opción 1 · Desde una foto", "✍️ Opción 2 · Clase por clase"])
+    foto, a_mano = st.tabs(["Desde una foto", "Clase por clase"])
     with foto:
         st.markdown("**Sube una foto o captura de tu horario** (la lee una IA)")
         st.caption("La imagen se envía a un servicio de IA externo (Google Gemini) solo "
@@ -471,11 +463,9 @@ def vista_mi_horario():
         return
     clases = horarios[alias]
     semana = clases_semana(clases)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Clases", len(clases), border=True)
-    c2.metric("Horas a la semana", sum(f - i for _, i, f, _, _ in semana), border=True)
-    c3.metric("Días con clase", len({d for d, *_ in semana}), border=True)
-    vista_grilla, vista_lista = st.tabs(["🗓️ Semana", "📋 Lista"])
+    horas = sum(f - i for _, i, f, _, _ in semana)
+    st.caption(f"{len(clases)} clases · {horas} horas a la semana")
+    vista_grilla, vista_lista = st.tabs(["Semana", "Lista"])
     with vista_grilla:
         st.markdown(estilos.horario_semanal(semana, NOMBRES_DIAS, H_INI, H_FIN),
                     unsafe_allow_html=True)
@@ -483,7 +473,7 @@ def vista_mi_horario():
         tabla_clases(clases)
 
     with st.container(border=True):
-        paso("✎", "Corregir o borrar una clase")
+        paso("Corregir o borrar una clase")
         elegida = st.selectbox("Clase", range(len(clases)), key="m_sel",
                                format_func=lambda i: texto_clase(clases[i]))
         accion = st.radio("¿Qué quieres hacer con esta clase?",
@@ -516,17 +506,16 @@ def vista_mi_horario():
         else:
             st.caption("La clase se quita de tu horario y su salón vuelve a quedar sin "
                        "información en esas horas.")
-            if st.button("Borrar esta clase", key="m_borrar_uno", icon="🗑️"):
+            if st.button("Borrar esta clase", key="m_borrar_uno"):
                 cambiar(lambda c, h: borrar_clase(c, h, alias, elegida))
                 st.session_state.pop("m_sel", None)
                 st.session_state.pop("m_firma", None)
                 st.session_state["m_aviso"] = "Clase borrada."
                 st.rerun()
 
-    with st.expander("Zona de peligro: borrar todo mi horario"):
+    with st.expander("Borrar todo mi horario"):
         seguro = st.checkbox("Sí, quiero borrar TODO mi horario", key="m_borrar_conf")
-        if st.button("Borrar todo mi horario", key="m_borrar_todo", disabled=not seguro,
-                     icon="⚠️"):
+        if st.button("Borrar todo mi horario", key="m_borrar_todo", disabled=not seguro):
             n = cambiar(lambda c, h: borrar_horario(c, h, alias))
             for clave in ("m_sel", "m_firma", "m_borrar_conf"):
                 st.session_state.pop(clave, None)
@@ -540,9 +529,9 @@ def vista_semestre():
     st.write(f"**Semestre vigente:** {semestre['nombre']} · "
              f"**datos válidos hasta:** {semestre['fin']}")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Registros de uso", len(campus.registros), border=True)
-    c2.metric("Horarios cargados", len(horarios), border=True)
-    c3.metric("Cobertura de datos", f"{cobertura(campus, TODAS):.0%}", border=True)
+    c1.metric("Registros de uso", len(campus.registros))
+    c2.metric("Horarios cargados", len(horarios))
+    c3.metric("Cobertura de datos", f"{cobertura(campus, TODAS):.0%}")
     st.caption("Los horarios vencen al terminar el semestre. Cerrar el semestre "
                "borra (o archiva) los datos y empieza uno nuevo vacío.")
     if not CLAVE_ADMIN:
@@ -551,7 +540,7 @@ def vista_semestre():
                    "`.streamlit/secrets.toml`).")
         return
     with st.container(border=True):
-        paso("🔒", "Solo administrador")
+        paso("Administrador")
         clave = st.text_input("Clave de administrador", type="password", key="s_clave")
         if not clave:
             return
@@ -577,28 +566,21 @@ def vista_semestre():
                 st.rerun()
 
 
-# ---------------------------------------------------------------- barra lateral
-def barra_lateral():
-    with st.sidebar:
-        st.markdown("### 🧭 Cómo usarla")
-        st.markdown(
-            "1. **Buscar libre**: elige día y hora y revisa un salón o busca el libre "
-            "más cercano.\n"
-            "2. **Registrar**: ocupa un espacio o carga tu horario (foto o a mano).\n"
-            "3. **Mi horario**: corrige o borra tus clases.")
-        st.markdown("### 🎨 Estados")
-        st.markdown(estilos.leyenda(), unsafe_allow_html=True)
-        st.caption("Sin información **no** significa libre: solo se asegura lo que "
-                   "alguien registró.")
-        st.divider()
-        st.caption(f"Hora de Colombia: {tiempo.ahora():%d/%m/%Y %H:%M}")
-
-
 # ---------------------------------------------------------------- principal
-st.markdown(estilos.encabezado(semestre["nombre"], semestre["fin"], len(campus.registros),
-                               len(horarios), cobertura(campus, TODAS)),
+def estado_de_ahora():
+    """Texto de 'ahora' y cuántos espacios hay ocupados, libres y sin información."""
+    ahora = tiempo.ahora()
+    if ahora.weekday() >= len(DIAS) or not H_INI <= ahora.hour < H_FIN:
+        return None, 0, 0, 0
+    f = franja(ahora.weekday(), ahora.hour)
+    estados = [campus.estado(e, f) for e in campus.espacios]
+    texto = f"Ahora, {NOMBRES_DIAS[ahora.weekday()].lower()} {ahora:%H:%M}"
+    return (texto, estados.count("ocupado"), estados.count("libre"),
+            estados.count("desconocido"))
+
+
+st.markdown(estilos.cabecera(semestre["nombre"], semestre["fin"], *estado_de_ahora()),
             unsafe_allow_html=True)
-barra_lateral()
 
 if esta_vencido:
     st.error(f"El semestre {semestre['nombre']} terminó el {semestre['fin']}. "
@@ -606,8 +588,8 @@ if esta_vencido:
     vista_semestre()
     st.stop()
 
-pestanas = st.tabs(["🔎 Buscar libre", "🏷️ ¿Qué hay?", "🎓 Tutorías", "✍️ Registrar",
-                    "🗓️ Mi horario", "⚙️ Semestre"])
+pestanas = st.tabs(["Buscar libre", "Qué hay", "Tutorías", "Registrar", "Mi horario",
+                    "Semestre"])
 for pestana, vista in zip(pestanas, [vista_buscar, vista_que_hay, vista_tutorias,
                                      vista_registrar, vista_mi_horario, vista_semestre]):
     with pestana:
