@@ -574,7 +574,7 @@ def estado_de_ahora():
         return None, 0, 0, 0
     f = franja(ahora.weekday(), ahora.hour)
     estados = [campus.estado(e, f) for e in campus.espacios]
-    texto = f"Ahora, {NOMBRES_DIAS[ahora.weekday()].lower()} {ahora:%H:%M}"
+    texto = f"{NOMBRES_DIAS[ahora.weekday()].lower()} {ahora:%H:%M}"
     return (texto, estados.count("ocupado"), estados.count("libre"),
             estados.count("desconocido"))
 

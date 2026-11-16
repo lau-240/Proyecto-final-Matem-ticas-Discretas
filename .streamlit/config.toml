@@ -3,24 +3,16 @@
 # Oculta el botón "Deploy" y las opciones de desarrollador de la barra superior
 toolbarMode = "viewer"
 
-# Tema: se respeta el modo claro/oscuro del sistema y cada uno tiene su paleta.
-# Fuentes de Google Fonts; sin internet se usan Georgia y la fuente sans del sistema.
+# Tema claro con la paleta institucional de Uninorte (rojo, negro, amarillo roble).
+# Fuente de Google Fonts; sin internet se usa Arial.
 [theme]
-font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
-headingFont = "Fraunces:https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=swap, Georgia, serif"
-baseRadius = "medium"
-buttonRadius = "medium"
-
-[theme.light]
-primaryColor = "#D2491F"
-backgroundColor = "#FBF8F3"
-secondaryBackgroundColor = "#F1ECE3"
-textColor = "#1B2B44"
-borderColor = "#E3DCCF"
-
-[theme.dark]
-primaryColor = "#F2875A"
-backgroundColor = "#141A24"
-secondaryBackgroundColor = "#1E2633"
-textColor = "#EEE8DC"
-borderColor = "#2C3646"
+base = "light"
+font = "Open Sans:https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap, Arial, sans-serif"
+primaryColor = "#C8102E"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F4F4"
+textColor = "#1A1A1A"
+borderColor = "#E2E2E2"
+linkColor = "#C8102E"
+baseRadius = "2px"
+buttonRadius = "2px"
