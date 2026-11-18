@@ -1,38 +1,107 @@
-# Disponibilidad y uso de espacios del campus (MAT 4021)
+## Qué necesitas tener instalado
 
-[![Pruebas](https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas/actions/workflows/pruebas.yml/badge.svg)](https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas/actions/workflows/pruebas.yml)
+| Qué | Para qué | Notas |
+|---|---|---|
+| **Python 3.12 o superior** | Ejecutar el programa | Descárgalo de https://www.python.org/downloads/. **En Windows, marca la casilla «Add python.exe to PATH»** al instalar. Con versiones anteriores a 3.12 algunas librerías (como `networkx`) no se instalan. |
+| **Un navegador moderno** | Ver la interfaz | Chrome, Edge o Firefox. |
+| **Conexión a internet** | Instalar las librerías (solo la primera vez) y, opcionalmente, leer el horario desde una foto | El resto de la app funciona sin internet. |
+| Git *(opcional)* | Descargar el proyecto con `git clone` | Si no lo tienes, se baja como ZIP desde GitHub. |
+| Clave de Gemini *(opcional)* | Solo para leer el horario desde una foto | Ver «Configuración» más abajo. |
+| Tectonic o XeLaTeX *(opcional)* | Solo para volver a compilar el documento y las diapositivas | Ver «Documento y diapositivas». |
 
-Modelo con álgebra booleana (ocupación por franja), grafo ponderado de bloques
-(espacio libre más cercano con Dijkstra) y análisis de redes. Incluye una interfaz
-web (Streamlit) donde cada estudiante carga su horario y consulta qué espacios
-están libres u ocupados.
+Las librerías de Python (`streamlit`, `networkx`, `matplotlib`, `google-genai`, `pytest`, entre
+otras) **no hay que instalarlas a mano**: el paso 3 las instala todas desde `requirements.txt`.
 
-## Cómo ejecutarlo
+Para comprobar que Python quedó bien instalado, abre una terminal y escribe:
 
-### Primera vez (instalación)
+```
+python --version
+```
+
+Debe mostrar `Python 3.12` o superior. Si dice que no reconoce el comando, prueba con
+`py --version`.
+
+## Cómo abrirlo y ejecutarlo
+
+### 1. Descargar el proyecto
+
+- **Con Git:**
+
+  ```
+  git clone https://github.com/lau-240/Proyecto-final-Matem-ticas-Discretas.git
+  ```
+
+- **Sin Git:** en la página del repositorio en GitHub, botón **Code → Download ZIP**, y
+  extraer el ZIP.
+
+Entra a la carpeta que contiene `app.py`. Si al extraer el ZIP quedó una carpeta dentro de
+otra, entra a la de adentro.
+
+### 2. Abrir una terminal en esa carpeta
+
+- **Desde el Explorador de archivos:** entra a la carpeta, haz clic en la barra de
+  direcciones, escribe `powershell` y pulsa Enter.
+- **O desde VS Code:** *Archivo → Abrir carpeta*, elige la carpeta, y luego
+  *Terminal → Nueva terminal*.
+
+Para comprobar que estás en el sitio correcto, escribe `dir`: debes ver `app.py`, `main.py`
+y `requirements.txt`.
+
+### 3. Instalación (solo la primera vez)
 
 ```
 python -m venv venv
-venv\Scripts\activate          # Windows  (Mac/Linux: source venv/bin/activate)
+venv\Scripts\activate
 python -m pip install -r requirements.txt
 ```
 
-### Cada vez que quieras usarlo
+- Después del segundo comando, el inicio de la línea debe mostrar `(venv)`.
+- Si PowerShell dice que la ejecución de scripts está deshabilitada, escribe
+  `Set-ExecutionPolicy -Scope Process Bypass` y vuelve a ejecutar `venv\Scripts\activate`.
+- En Mac o Linux: `python3 -m venv venv` y `source venv/bin/activate`.
 
-- **Windows, lo más fácil:** doble clic en `iniciar.bat` (activa el entorno y abre la app).
-- **A mano:**
-
-```
-venv\Scripts\activate
-python -m streamlit run app.py # interfaz web local (se abre en el navegador)
-```
-
-Otros comandos:
+### 4. Abrir y ejecutar la app
 
 ```
-python main.py                 # caso conocido, conflictos, tutorías, simulación, red
-python -m pytest               # pruebas
+python -m streamlit run app.py
 ```
+
+- La app se abre sola en el navegador en **http://localhost:8501**. Si no se abre, copia esa
+  dirección en el navegador.
+- La primera vez Streamlit puede pedir un correo: déjalo vacío y pulsa Enter.
+- **No cierres la terminal mientras uses la app.** Para detenerla, pulsa `Ctrl + C` en la
+  terminal.
+- Desde otro dispositivo conectado a la misma red Wi-Fi se puede abrir la «Network URL» que
+  aparece en la terminal (si Windows pregunta por el firewall, permite las redes privadas).
+- Los datos se guardan en la carpeta `datos/`, que se crea sola.
+
+### 5. Las próximas veces
+
+- **Lo más fácil (Windows):** doble clic en `iniciar.bat`. Activa el entorno y abre la app.
+  Solo funciona si ya hiciste el paso 3 una vez, porque necesita la carpeta `venv`.
+- **A mano:** abre la terminal en la carpeta, escribe `venv\Scripts\activate` y luego
+  `python -m streamlit run app.py`.
+
+### 6. Comprobar que todo funciona
+
+```
+python -m pytest               # debe terminar con «passed» y ningún «failed»
+python main.py                 # demostración del modelo: caso conocido, simulación y red
+```
+
+`main.py` también guarda un gráfico del campus en `resultados/campus.png`.
+
+### 7. Si algo falla
+
+| Síntoma | Qué hacer |
+|---|---|
+| `python` no se reconoce | Python quedó sin PATH: reinstálalo marcando «Add python.exe to PATH», o usa `py` en lugar de `python`. |
+| `No module named streamlit` (u otra librería) | No está activado el entorno (no se ve `(venv)`) o falta el paso 3. |
+| `iniciar.bat` se cierra enseguida | Falta crear el entorno: haz el paso 3 una vez. |
+| `pytest` no se reconoce | Usa siempre `python -m pytest`. |
+| La página no abre o el puerto está ocupado | `python -m streamlit run app.py --server.port 8502` y abre http://localhost:8502. |
+| No puedo cerrar el semestre | Falta definir `CLAVE_ADMIN` (ver «Configuración»). |
+| Leer el horario desde la foto da error | Falta la clave de Gemini o no hay internet. Usa «agregar una clase a mano». |
 
 ### Configuración
 
@@ -66,96 +135,3 @@ python -m pytest               # pruebas
   que tiene disponibles tu clave, ejecuten `python probar_ia.py` (lee la clave de la
   variable de entorno o de `secrets.toml`). Para usar otros, definan `MODELO_GEMINI` (uno o
   varios separados por coma).
-
-## Estructura
-
-| Archivo | Qué hace |
-|---|---|
-| `app.py` | Interfaz Streamlit: buscar libre, qué hay, tutorías, registrar, mi horario, semestre |
-| `src/estilos.py` | Estilo de la interfaz (paleta de Uninorte): cabecera, menú, tira de horas y horario semanal |
-| `iniciar.bat` | Atajo de Windows: activa el entorno y abre la app |
-| `probar_ia.py` | Prueba la clave de Gemini, cada modelo del lector y lista los disponibles |
-| `main.py` | Caso conocido, conflictos, tutorías, simulación y análisis de red |
-| `src/franjas.py` | Franjas horarias como bits (6 días x 16 horas, 6:00-22:00) |
-| `src/tiempo.py` | Hora de Colombia y vencimiento de los usos de una sola vez |
-| `src/campus.py` | Espacios, ocupación/información, estados y grafo de bloques |
-| `src/codigos.py` | Códigos de salón (26J, 37G2, SDU9, L1-5) -> bloque |
-| `src/horario_csv.py` | Lectura y validación de horarios en CSV |
-| `src/lector_imagen.py` | Lectura de la foto del horario con IA (opcional) |
-| `src/consultas.py` | Libres, más cercano, tutorías, ubicación inferida, cobertura |
-| `src/almacen.py` | Guardado en disco (JSON), candado de guardado y ciclo de vida por semestre |
-| `src/datos.py` | Campus real, campus de simulación, caso conocido |
-| `src/metricas.py` | Modelo de 3 estados vs. ingenuo de 2 estados |
-| `tests/` | Pruebas, incluido el caso con resultado conocido |
-| `docs/paper/` | Documento escrito final (`paper.tex` y `paper.pdf`) |
-| `docs/presentacion/` | Diapositivas en Beamer (`presentacion.tex` y `presentacion.pdf`) |
-| `.streamlit/config.toml` | Ajustes de la interfaz: tema claro con colores de Uninorte, fuente y oculta la barra de desarrollador |
-| `pytest.ini` | Configuración de las pruebas (solo busca en `tests/`) |
-| `.github/workflows/pruebas.yml` | CI: corre las pruebas en GitHub en cada push y pull request |
-
-## Documento y diapositivas
-
-Los PDF ya compilados están en `docs/paper/paper.pdf` y `docs/presentacion/presentacion.pdf`.
-Para volver a generarlos después de editar el `.tex`, usen [Tectonic](https://tectonic-typesetting.github.io)
-(descarga solo los paquetes que necesita) o cualquier distribución TeX con XeLaTeX:
-
-```
-cd docs/paper && tectonic paper.tex
-cd docs/presentacion && tectonic presentacion.tex
-```
-
-Los números del documento salen de `python main.py` y `python -m pytest`.
-
-## Antes de subir cambios
-
-Corran `python -m pytest` y suban solo si todo pasa. GitHub vuelve a correr las pruebas
-en cada push (pestaña *Actions*); si algo falla, el commit queda marcado con una ✗.
-
-## Modelo en una línea
-
-Por espacio: `ocupado` e `info` (vectores de bits). Ocupado = bit en `ocupado`;
-libre = `info` y no `ocupado`; desconocido = sin `info`. Conflicto al reservar =
-`ocupado AND máscara != 0`.
-
-## Usos que se repiten y usos de una sola vez
-
-Los horarios son semanales (no tienen fecha), así que cada uso se trata según su motivo:
-
-- **Clase y tutoría:** se repiten cada semana hasta que termina el semestre.
-- **Estudio, reunión y práctica:** ocupan la franja solo la próxima vez que ocurre y se
-  borran solos al terminar. El espacio queda *sin información*, no *libre*.
-
-## Códigos de salón
-
-- `26J`, `93K`: número + letra del bloque. `37G2`: el bloque G tiene dos lados (G1, G2).
-- `SDU1`-`SDU10`: tabla fija en `src/codigos.py` (bloque y piso).
-- `L1-5`, `L1-4`, `L1-3`: laboratorios de física, todos en el bloque `LAB`.
-
-## Semestres: los horarios vencen
-
-- Los datos se guardan en `datos/semestres/<semestre>.json` (no se suben a GitHub).
-- Cada semestre tiene fecha de fin. Pasada esa fecha la app deja de mostrar datos y solo
-  permite al administrador cerrar el semestre (borrar o archivar) y empezar uno vacío.
-- **La fecha de fin por defecto es de ejemplo: ajustarla al calendario académico real.**
-- Al cargar su horario, el estudiante usa un código inventado, no su nombre.
-
-## Limitaciones conocidas
-
-- Un espacio solo se asegura como libre u ocupado si alguien lo registró o cargó un horario
-  que lo usa; "sin información" no significa libre.
-- Los tiempos de caminata entre bloques (`ARISTAS_CAMPUS` en `src/datos.py`) son valores de
-  ejemplo y deben medirse en el campus. El tiempo del bloque `LAB` también.
-- El código estudiantil no es secreto y no hay contraseña: quien conozca el código de otra
-  persona puede ver, corregir o borrar su horario.
-- El candado de guardado funciona dentro de un solo proceso de Streamlit (como se ejecuta
-  aquí). Si se corrieran varios procesos sobre la misma carpeta `datos/`, harían falta
-  otras garantías (por ejemplo, una base de datos).
-- La lectura por foto depende de un servicio externo, puede equivocarse y por eso siempre
-  se revisa antes de guardar.
-
-## Pendiente para el grupo
-
-- [ ] Medir en el campus los tiempos de caminata reales.
-- [ ] Cargar horarios reales y hacer la encuesta de tiempo de búsqueda (manual vs. modelo).
-- [ ] Agregar los salones de los demás bloques a `SALONES_BLOQUE` en `src/codigos.py`.
-- [ ] Poner la fecha de fin real del semestre.
