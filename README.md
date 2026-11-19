@@ -19,7 +19,7 @@ python --version
 ```
 
 Debe mostrar `Python 3.12` o superior. Si dice que no reconoce el comando, prueba con
-`py --version`.
+`py --version`. Si no lo tienes, instálalo desde python.org y marca la casilla “Add Python to PATH” durante la instalación.
 
 ## Cómo abrirlo y ejecutarlo
 
